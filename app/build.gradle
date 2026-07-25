@@ -6,31 +6,31 @@ plugins {
 }
 
 android {
-    namespace 'yos.music.player'
-    compileSdk 34
+    namespace = 'yos.music.player'
+    compileSdk = 34
 
     defaultConfig {
-        applicationId "yos.music.player"
-        minSdk 23
-        targetSdk 34
-        versionCode 1
-        versionName "1.0.0"
+        applicationId = "rua.ci.fostarwolf.kumoplayer"
+        minSdk = 23
+        targetSdk = 34
+        versionCode = 1
+        versionName = "1.0.0"
 
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
             abiFilters "armeabi-v7a", "arm64-v8a"
         }
 
-        renderscriptTargetApi 19
-        renderscriptSupportModeEnabled true
+        renderscriptTargetApi = 19
+        renderscriptSupportModeEnabled = true
     }
 
     buildTypes {
         release {
-            minifyEnabled true
-            zipAlignEnabled true
-            shrinkResources true
+            minifyEnabled = true
+            zipAlignEnabled = true
+            shrinkResources = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             applicationVariants.all { variant ->
                 variant.outputs.all {
@@ -48,18 +48,13 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion '2.0.0'
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
-    }
 
     kotlinOptions {
         jvmTarget = '1.8'
     }
 
     buildFeatures {
-        compose true
+        compose = true
     }
 
     sourceSets {
@@ -73,7 +68,7 @@ android {
             excludes += '/META-INF/{AL2.0,LGPL2.1}'
         }
         jniLibs {
-            useLegacyPackaging true
+            useLegacyPackaging = true
         }
     }
 
@@ -86,7 +81,7 @@ android {
 
 dependencies {
     implementation fileTree(include: ["*.*"], dir: "libs")
-    implementation project ":overscroll_core"
+    implementation project(":overscroll_core")
 
     implementation 'androidx.core:core-ktx:1.13.1'
     implementation platform('org.jetbrains.kotlin:kotlin-bom:1.8.22')
