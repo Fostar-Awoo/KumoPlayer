@@ -3,10 +3,10 @@ name: Build APK
 on:
   push:
     branches:
-      - main  # 如果您的主分支叫 master，请修改为 master
+      - master  # 如果您的主分支叫 master，请修改为 master
   pull_request:
     branches:
-      - main
+      - master
 
 jobs:
   build:
@@ -38,4 +38,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-release
-          path: app/build/outputs/apk/release/*.apk # 根据实际 app 模块目录调整路径
+          path: app/build/outputs/apk/release/*.ApK # 根据实际 app 模块目录调整路径
