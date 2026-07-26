@@ -31,10 +31,18 @@
 # -keep class yos.music.player.data.libraries.Folder { *; }
 -keepnames class yos.music.player.data.libraries.** { *; }
 
--keepattributes Signature
+-keepattributes Signature,InnerClasses,EnclosingMethod
 -keep class com.google.gson.reflect.TypeToken { *; }
 -keep class * extends com.google.gson.reflect.TypeToken
--keepattributes AnnotationDefault,RuntimeVisibleAnnotations
+-keepattributes AnnotationDefault,RuntimeVisibleAnnotations,RuntimeVisibleParameterAnnotations
+
+# Retrofit reflects on suspend functions. R8 full mode otherwise strips the generic
+# Continuation<Response<T>> signature and Retrofit receives a raw Class instead of a
+# ParameterizedType at runtime.
+-if interface * { @retrofit2.http.* <methods>; }
+-keep,allowobfuscation interface <1>
+-keep,allowoptimization,allowshrinking,allowobfuscation class kotlin.coroutines.Continuation
+-keep,allowoptimization,allowshrinking,allowobfuscation class retrofit2.Response
 
 -assumenosideeffects class android.util.Log {
     public static *** d(...);
