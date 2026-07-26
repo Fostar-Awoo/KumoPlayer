@@ -206,13 +206,15 @@ object MediaController {
         play: Boolean = true
     ) {
         println("prepare $music")
-        // 使用网易云歌曲外链，Media3 会跟随响应重定向播放实际音频。
+        // 优先使用增强 API 返回的实际 CDN 地址；API 不可达时才回退歌曲外链。
         val urls = NcmRepository.getSongUrls(thisMusicList.mapNotNull(YosMediaItem::neteaseId))
-        val resolvedList = thisMusicList.map { item ->
+        val resolvedList = thisMusicList.mapNotNull { item ->
             val url = item.neteaseId?.let(urls::get)
             when {
                 url != null -> item.copy(audioUrl = url, uri = android.net.Uri.parse(url))
-                else -> item
+                item.neteaseId != null -> null
+                item.uri != null -> item
+                else -> null
             }
         }
         val resolvedMusic = resolvedList.firstOrNull { it.neteaseId == music.neteaseId }
@@ -223,23 +225,17 @@ object MediaController {
             throw IllegalStateException("无法获取歌曲 ${music.neteaseId ?: music.title} 的播放地址")
         }
 
-        if (thisMusicList != playingMusicList.value) {
+        val isNewList = thisMusicList != playingMusicList.value
+        val index = resolvedList.indexOfFirst { sameTrack(it, resolvedMusic) }.coerceAtLeast(0)
+        val itemList = resolvedList.map { it.toMediaItem() }
 
-            var index = 0
+        // 即使逻辑歌单未改变，也必须把新解析的 CDN 地址写入 Media3，不能继续使用旧 URI。
+        withContext(Dispatchers.Main) {
+            mediaControl?.setMediaItems(itemList, index, if (isNewList) position else 0L)
+            mediaControl?.prepare()
+        }
 
-            val itemList = resolvedList.mapIndexed { thisIndex, it ->
-                if (sameTrack(it, resolvedMusic)) {
-                    index = thisIndex
-                }
-
-                it.toMediaItem()
-            }
-
-
-            withContext(Dispatchers.Main) {
-                mediaControl?.setMediaItems(itemList, index, position)
-                mediaControl?.prepare()
-            }
+        if (isNewList) {
 
             println("prepare 调用切列表")
             if (!play && playingMusicList.value == null) {
@@ -274,9 +270,8 @@ object MediaController {
 
         } else {
             println("prepare 调用非切列表")
-            val index = resolvedList.indexOfFirst { sameTrack(it, resolvedMusic) }.coerceAtLeast(0)
             withContext(Dispatchers.Main) {
-                mediaControl?.seekToDefaultPosition(index)
+                playingMusicList.value = resolvedList
                 mediaControl?.fadePlay()
             }
         }
@@ -462,6 +457,7 @@ class YosPlaybackService : MediaSessionService() {
         val httpDataSourceFactory = DefaultHttpDataSource.Factory()
             .setAllowCrossProtocolRedirects(true)
             .setUserAgent("Mozilla/5.0 (Android) KumoPlayer/1.0")
+            .setDefaultRequestProperties(mapOf("Referer" to "https://music.163.com/"))
         val dataSourceFactory = DefaultDataSource.Factory(this, httpDataSourceFactory)
         val player = ExoPlayer.Builder(
             this,

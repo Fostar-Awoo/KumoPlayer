@@ -5,6 +5,8 @@ import android.content.ComponentName
 import android.net.Uri
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import coil.ImageLoader
+import coil.ImageLoaderFactory
 import com.funny.data_saver.core.DataSaverConverter.registerTypeConverters
 import com.google.common.util.concurrent.MoreExecutors
 import com.google.gson.GsonBuilder
@@ -15,6 +17,8 @@ import com.tencent.mmkv.MMKV
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 import yos.music.player.code.MediaController.mediaControl
 import yos.music.player.code.MediaController.playingMusicList
 import yos.music.player.code.YosPlaybackService
@@ -25,7 +29,27 @@ import yos.music.player.data.libraries.YosMediaItem
 import yos.music.player.data.libraries.YosStringWrapper
 import kotlin.system.exitProcess
 
-class YosBasicApplication : Application() {
+class YosBasicApplication : Application(), ImageLoaderFactory {
+    override fun newImageLoader(): ImageLoader {
+        val imageClient = OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .addInterceptor { chain ->
+                chain.proceed(
+                    chain.request().newBuilder()
+                        .header("User-Agent", "Mozilla/5.0 (Android) KumoPlayer/1.0")
+                        .header("Referer", "https://music.163.com/")
+                        .build()
+                )
+            }
+            .build()
+        return ImageLoader.Builder(this)
+            .okHttpClient(imageClient)
+            .crossfade(true)
+            .respectCacheHeaders(false)
+            .build()
+    }
+
     override fun onCreate() {
 
         Thread.setDefaultUncaughtExceptionHandler { _, e ->

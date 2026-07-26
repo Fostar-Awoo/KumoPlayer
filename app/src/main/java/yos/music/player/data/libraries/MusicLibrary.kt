@@ -234,7 +234,7 @@ object MusicLibrary {
                     .setArtist(this.artists)
                     .setAlbumTitle(this.album)
                     .setAlbumArtist(this.albumArtists)
-                    .setArtworkUri(this.thumb)
+                    .setArtworkUri(this.coverUrl?.let(Uri::parse) ?: this.thumb)
                     .setTrackNumber(this.trackNumber)
                     .setDiscNumber(this.discNumber)
                     .setGenre(this.genre)

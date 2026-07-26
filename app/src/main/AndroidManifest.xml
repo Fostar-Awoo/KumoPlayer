@@ -26,6 +26,7 @@
         android:name=".YosBasicApplication"
         android:extractNativeLibs="true"
         android:appCategory="audio"
+        android:usesCleartextTraffic="true"
         android:largeHeap="true">
         <activity
             android:name=".MainActivity"

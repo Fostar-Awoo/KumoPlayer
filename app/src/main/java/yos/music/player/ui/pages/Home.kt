@@ -45,7 +45,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.drawable.toDrawable
 import androidx.navigation.NavController
-import coil.ImageLoader
+import coil.imageLoader
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
@@ -156,7 +156,7 @@ fun RecommendCardItem(subTitle: String, music: YosMediaItem, onClick: () -> Unit
         }
 
         val context = LocalContext.current
-        val imageLoader = ImageLoader(context)
+        val imageLoader = context.imageLoader
         YosWrapper {
             LaunchedEffect(Unit) {
                 if (music.thumb == null) return@LaunchedEffect
@@ -175,7 +175,6 @@ fun RecommendCardItem(subTitle: String, music: YosMediaItem, onClick: () -> Unit
                     ).toDrawable(context.resources)
                     thisBitmap.recycle()
                 }
-                imageLoader.shutdown()
             }
         }
 

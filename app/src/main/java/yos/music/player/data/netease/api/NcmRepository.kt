@@ -68,15 +68,28 @@ object NcmRepository {
         return res.getOrNull()?.songs ?: emptyList()
     }
 
-    /**
-     * 网易云歌曲外链地址。播放器请求该地址后会跟随 302 重定向播放实际音频。
-     */
-    fun getSongUrl(id: Long): String {
-        return OUTER_SONG_URL.format(id)
+    /** 优先通过增强 API 获取实际 CDN 地址，API 不可达时使用网易云歌曲外链。 */
+    suspend fun getSongUrl(id: Long): String {
+        return getSongUrls(listOf(id)).getValue(id)
     }
 
-    fun getSongUrls(ids: List<Long>): Map<Long, String> {
-        return ids.distinct().associateWith(::getSongUrl)
+    suspend fun getSongUrls(ids: List<Long>): Map<Long, String> {
+        val distinctIds = ids.distinct()
+        if (distinctIds.isEmpty()) return emptyMap()
+
+        // outer/url 在部分地区会重定向到 /404。优先采用用户配置的增强 API
+        // 在服务端解析出的实际 CDN 地址；API 不可用时仍保留 outer/url 兜底。
+        var apiResponded = false
+        val apiUrls = distinctIds.chunked(50).fold(mutableMapOf<Long, String>()) { result, chunk ->
+            safeCall { songUrl(chunk.joinToString(",")) }.getOrNull()?.let { response ->
+                apiResponded = true
+                response.data.orEmpty()
+                    .mapNotNull { item -> item.url?.let { item.id to it } }
+                    .forEach { (id, url) -> result[id] = url }
+            }
+            result
+        }
+        return if (apiResponded) apiUrls else distinctIds.associateWith { OUTER_SONG_URL.format(it) }
     }
 
     suspend fun getLyric(id: Long): NcmLyricData? {

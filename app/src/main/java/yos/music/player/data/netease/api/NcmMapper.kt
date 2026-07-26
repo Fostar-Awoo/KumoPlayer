@@ -3,9 +3,15 @@ package yos.music.player.data.netease.api
 import android.net.Uri
 import yos.music.player.data.libraries.YosMediaItem
 
+fun String.toNcmImageUrl(size: Int = 1080): String {
+    val httpsUrl = if (startsWith("http://")) "https://${removePrefix("http://")}" else this
+    return if ("param=" in httpsUrl) httpsUrl else "$httpsUrl?param=${size}y$size"
+}
+
 fun NcmSong.toYosMediaItem(audioUrl: String? = null): YosMediaItem {
     val artists = this.ar?.joinToString(" / ") { it.name }
     val artistIds = this.ar?.map { it.id }
+    val artworkUrl = this.al?.picUrl?.toNcmImageUrl()
     return YosMediaItem(
         uri = audioUrl?.let { Uri.parse(it) },
         mediaId = this.id.toString(),
@@ -17,7 +23,7 @@ fun NcmSong.toYosMediaItem(audioUrl: String? = null): YosMediaItem {
         artists = artists,
         album = this.al?.name,
         albumArtists = artists,
-        thumb = this.al?.picUrl?.let { Uri.parse(it) },
+        thumb = artworkUrl?.let(Uri::parse),
         trackNumber = null,
         discNumber = null,
         genre = null,
@@ -34,7 +40,7 @@ fun NcmSong.toYosMediaItem(audioUrl: String? = null): YosMediaItem {
         modifiedDate = null,
         cdTrackNumber = null,
         neteaseId = this.id,
-        coverUrl = this.al?.picUrl,
+        coverUrl = artworkUrl,
         audioUrl = audioUrl,
         artistIds = artistIds
     )

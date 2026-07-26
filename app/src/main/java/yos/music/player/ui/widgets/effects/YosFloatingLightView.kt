@@ -34,7 +34,7 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.drawable.toDrawable
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import coil.ImageLoader
+import coil.imageLoader
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.flaviofaria.kenburnsview.KenBurnsView
@@ -70,7 +70,7 @@ fun YosFloatingLight(
     println("封面：" + drawable.value)
 
     val context = LocalContext.current
-    val imageLoader = ImageLoader(context)
+    val imageLoader = context.imageLoader
     YosWrapper {
         LaunchedEffect(album()) {
             if (album() == null) return@LaunchedEffect
@@ -87,7 +87,6 @@ fun YosFloatingLight(
                     ).toDrawable(context.resources)
                     thisBitmap.recycle()
                 }
-                imageLoader.shutdown()
             }
         }
     }

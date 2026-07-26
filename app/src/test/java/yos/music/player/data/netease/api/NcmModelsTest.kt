@@ -9,6 +9,14 @@ import org.junit.Test
 class NcmModelsTest {
 
     @Test
+    fun neteaseImageUrlUsesHttpsAndRequestsBoundedArtwork() {
+        assertEquals(
+            "https://p1.music.126.net/cover.jpg?param=1080y1080",
+            "http://p1.music.126.net/cover.jpg".toNcmImageUrl()
+        )
+    }
+
+    @Test
     fun recommendSongsGenericPayloadDeserializesToConcreteModel() {
         val responseType = object : TypeToken<NcmResponse<NcmRecommendSongsData>>() {}.type
         val response: NcmResponse<NcmRecommendSongsData> = Gson().fromJson(
