@@ -35,6 +35,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material3.TextButton
 import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -44,6 +45,14 @@ import yos.music.player.data.netease.api.NcmRepository
 
 @Composable
 fun WelcomeScreen(onFinished: () -> Unit) {
+    NcmAccountScreen(onFinished = onFinished)
+}
+
+@Composable
+fun NcmAccountScreen(
+    onFinished: () -> Unit,
+    onBack: (() -> Unit)? = null
+) {
     var baseUrl by remember { mutableStateOf(NcmApiClient.baseUrl) }
     var session by remember { mutableStateOf<NcmRepository.QrLoginSession?>(null) }
     var loading by remember { mutableStateOf(false) }
@@ -59,6 +68,7 @@ fun WelcomeScreen(onFinished: () -> Unit) {
         baseUrl = normalized
         NcmApiClient.baseUrl = normalized
         loading = true
+        session = null
         message = null
         scope.launch {
             NcmRepository.createQrLogin().fold(
@@ -73,24 +83,27 @@ fun WelcomeScreen(onFinished: () -> Unit) {
         val current = session ?: return@LaunchedEffect
         while (isActive && session?.key == current.key) {
             delay(2_000)
-            NcmRepository.checkQrLogin(current.key).onSuccess { status ->
-                when (status.code) {
-                    800 -> {
-                        message = "二维码已过期，请重新获取"
-                        session = null
+            NcmRepository.checkQrLogin(current.key).fold(
+                onSuccess = { status ->
+                    when (status.code) {
+                        800 -> {
+                            message = "二维码已过期，请重新获取"
+                            session = null
+                        }
+                        802 -> message = "已扫码，请在网易云音乐中确认"
+                        803 -> {
+                            status.cookie?.let { NcmApiClient.cookie = it }
+                            NcmApiClient.nickname = status.nickname
+                            NcmApiClient.avatarUrl = status.avatarUrl
+                            NcmApiClient.isLoggedIn = true
+                            NcmApiClient.isGuest = false
+                            NcmRepository.checkLoginStatus()
+                            onFinished()
+                        }
                     }
-                    802 -> message = "已扫码，请在网易云音乐中确认"
-                    803 -> {
-                        status.cookie?.let { NcmApiClient.cookie = it }
-                        NcmApiClient.nickname = status.nickname
-                        NcmApiClient.avatarUrl = status.avatarUrl
-                        NcmApiClient.isLoggedIn = true
-                        NcmApiClient.isGuest = false
-                        NcmRepository.checkLoginStatus()
-                        onFinished()
-                    }
-                }
-            }
+                },
+                onFailure = { message = "二维码状态检查失败，正在重试" }
+            )
         }
     }
 
@@ -101,7 +114,19 @@ fun WelcomeScreen(onFinished: () -> Unit) {
             .padding(horizontal = 28.dp, vertical = 54.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Kumo Music", fontSize = 36.sp, fontWeight = FontWeight.Bold)
+        if (onBack != null) {
+            TextButton(
+                onClick = onBack,
+                modifier = Modifier.align(Alignment.Start)
+            ) {
+                Text("返回")
+            }
+        }
+        Text(
+            if (onBack == null) "Kumo Music" else "网易云音乐账号",
+            fontSize = if (onBack == null) 36.sp else 30.sp,
+            fontWeight = FontWeight.Bold
+        )
         Spacer(Modifier.height(8.dp))
         Text(
             "连接你的网易云音乐服务",
@@ -130,8 +155,11 @@ fun WelcomeScreen(onFinished: () -> Unit) {
         )
         Spacer(Modifier.height(24.dp))
 
-        PrimaryAction(if (session == null) "连接并获取登录二维码" else "重新获取二维码") {
-            configureAndLoadQr()
+        PrimaryAction(
+            label = if (session == null) "连接并获取登录二维码" else "重新获取二维码",
+            enabled = !loading
+        ) {
+            if (!loading) configureAndLoadQr()
         }
 
         if (loading) {
@@ -165,6 +193,19 @@ fun WelcomeScreen(onFinished: () -> Unit) {
             )
         }
 
+        if (onBack != null) {
+            Spacer(Modifier.height(18.dp))
+            Text(
+                if (NcmApiClient.isLoggedIn) {
+                    "当前账号：${NcmApiClient.nickname?.takeIf { it.isNotBlank() } ?: "已登录"}"
+                } else {
+                    "当前状态：游客"
+                },
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = .55f),
+                fontSize = 14.sp
+            )
+        }
+
         Spacer(Modifier.height(28.dp))
         Text(
             "以游客身份继续",
@@ -176,8 +217,8 @@ fun WelcomeScreen(onFinished: () -> Unit) {
                         message = "请先填写有效的 API 地址"
                     } else {
                         NcmApiClient.baseUrl = normalized
+                        NcmApiClient.clearLogin()
                         NcmApiClient.isGuest = true
-                        NcmApiClient.isLoggedIn = false
                         onFinished()
                     }
                 }
@@ -185,18 +226,35 @@ fun WelcomeScreen(onFinished: () -> Unit) {
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Medium
         )
+
+        if (onBack != null && NcmApiClient.isLoggedIn) {
+            Text(
+                "退出登录",
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable {
+                        NcmApiClient.clearLogin()
+                        NcmApiClient.isGuest = true
+                        session = null
+                        message = "已退出登录"
+                    }
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                color = MaterialTheme.colorScheme.error,
+                fontWeight = FontWeight.Medium
+            )
+        }
     }
 }
 
 @Composable
-private fun PrimaryAction(label: String, onClick: () -> Unit) {
+private fun PrimaryAction(label: String, enabled: Boolean = true, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(52.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.primary)
-            .clickable(onClick = onClick),
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = if (enabled) 1f else .5f))
+            .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Text(label, color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.SemiBold)

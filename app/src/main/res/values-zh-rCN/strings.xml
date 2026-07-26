@@ -15,7 +15,12 @@
     <string name="tip_no_song">没有播放项目。</string>
     <string name="permission_grant_desc">用于读取设备上的媒体文件。</string>
     <string name="music_quality_lossless">无损</string>
-    <string name="settings_library_refresh_everytime">每次启动时刷新</string>
+    <string name="settings_netease">网易云音乐</string>
+    <string name="settings_netease_account">账号登录</string>
+    <string name="settings_netease_logged_in">已登录</string>
+    <string name="settings_netease_guest">游客</string>
+    <string name="settings_netease_base_url">API 基础 URL</string>
+    <string name="settings_netease_not_configured">未配置</string>
     <string name="settings_library_refresh_now">刷新媒体库</string>
     <string name="settings_library_refresh_now_desc">立即刷新媒体库。</string>
     <string name="settings_library_overview">媒体库概览</string>

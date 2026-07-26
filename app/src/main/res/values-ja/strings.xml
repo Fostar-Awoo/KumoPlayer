@@ -15,7 +15,12 @@
     <string name="tip_no_song">再生項目がありません。</string>
     <string name="permission_grant_desc">デバイス上のメディアファイルを読み取るために使用します。</string>
     <string name="music_quality_lossless">無損失</string>
-    <string name="settings_library_refresh_everytime">起動時に毎回更新</string>
+    <string name="settings_netease">NetEase Cloud Music</string>
+    <string name="settings_netease_account">アカウントログイン</string>
+    <string name="settings_netease_logged_in">ログイン済み</string>
+    <string name="settings_netease_guest">ゲスト</string>
+    <string name="settings_netease_base_url">API ベース URL</string>
+    <string name="settings_netease_not_configured">未設定</string>
     <string name="settings_library_refresh_now">メディアライブラリを更新</string>
     <string name="settings_library_refresh_now_desc">すぐにメディアライブラリを更新します。</string>
     <string name="settings_library_overview">メディアライブラリの概要</string>

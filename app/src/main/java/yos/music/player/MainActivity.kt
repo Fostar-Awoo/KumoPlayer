@@ -123,6 +123,7 @@ import yos.music.player.ui.UI.Settings.Companion.ExoplayerSetting
 import yos.music.player.ui.pages.HomeNav
 import yos.music.player.ui.pages.NowPlaying
 import yos.music.player.ui.pages.WelcomeScreen
+import yos.music.player.ui.pages.NcmAccountScreen
 import yos.music.player.ui.pages.NowPlayingPage.Album
 import yos.music.player.ui.pages.library.Library
 import yos.music.player.ui.pages.library.NormalMusic
@@ -436,6 +437,13 @@ class MainActivity : BaseActivity() {
                                                         popUpTo(UI.Welcome) { inclusive = true }
                                                     }
                                                 }
+                                            }
+
+                                            composable(UI.Settings.Account) {
+                                                NcmAccountScreen(
+                                                    onFinished = { navController.popBackStack() },
+                                                    onBack = { navController.popBackStack() }
+                                                )
                                             }
 
                                             composable(UI.HomePage) {
@@ -1234,8 +1242,7 @@ class MainActivity : BaseActivity() {
     }*/
 
     private fun loadMusic(context: Context, enforce: Boolean = false) {
-        val needRefresh = SettingsLibrary.RefreshEveryTime
-        if (needRefresh || enforce) {
+        if (enforce) {
             mediaViewModel.viewModelScope.launch(Dispatchers.IO) {
                 // Application中已还原，这里算是后台扫描
                 // mainMusicList.value = MusicScanner(context).getMusicList()

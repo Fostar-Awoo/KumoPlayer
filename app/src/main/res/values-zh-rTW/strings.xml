@@ -15,7 +15,12 @@
     <string name="tip_no_song">沒有播放項目。</string>
     <string name="permission_grant_desc">用於讀取裝置上的媒體檔案。</string>
     <string name="music_quality_lossless">無損</string>
-    <string name="settings_library_refresh_everytime">每次啟動時刷新</string>
+    <string name="settings_netease">網易雲音樂</string>
+    <string name="settings_netease_account">帳號登入</string>
+    <string name="settings_netease_logged_in">已登入</string>
+    <string name="settings_netease_guest">遊客</string>
+    <string name="settings_netease_base_url">API 基礎 URL</string>
+    <string name="settings_netease_not_configured">未設定</string>
     <string name="settings_library_refresh_now">刷新媒體庫</string>
     <string name="settings_library_refresh_now_desc">立即刷新媒體庫。</string>
     <string name="settings_library_overview">媒體庫概覽</string>

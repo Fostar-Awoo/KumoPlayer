@@ -83,16 +83,6 @@ object SettingsLibrary {
     )
 
     /**
-     * 每次启动时刷新媒体库
-     */
-    @Stable
-    var RefreshEveryTime by mutableDataSaverStateOf(
-        dataSaverInterface = SettingsSaver,
-        key = "settings_library_refresh_everytime",
-        initialValue = false
-    )
-
-    /**
      * 歌词字体字重
      */
     @Stable

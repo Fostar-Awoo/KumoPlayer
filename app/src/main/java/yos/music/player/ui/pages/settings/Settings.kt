@@ -21,6 +21,7 @@ import yos.music.player.R
 import yos.music.player.code.MediaController
 import yos.music.player.data.libraries.MusicLibrary
 import yos.music.player.data.libraries.SettingsLibrary
+import yos.music.player.data.netease.api.NcmApiClient
 import yos.music.player.ui.UI
 import yos.music.player.ui.toUI
 import yos.music.player.ui.widgets.basic.RoundColumn
@@ -37,19 +38,33 @@ fun Settings(navController: NavController) =
             content = {
                 item("settings") {
                     Column(Modifier.fillMaxSize()) {
-                        // GroupSpacerMedium()
+                        ListHeader(stringResource(id = R.string.settings_netease))
+                        RoundColumn {
+                            LabelItem(
+                                title = stringResource(id = R.string.settings_netease_account),
+                                desc = if (NcmApiClient.isLoggedIn) {
+                                    NcmApiClient.nickname?.takeIf { it.isNotBlank() }
+                                        ?: stringResource(id = R.string.settings_netease_logged_in)
+                                } else {
+                                    stringResource(id = R.string.settings_netease_guest)
+                                }
+                            ) {
+                                navController.toUI(UI.Settings.Account)
+                            }
+                            Divider()
+                            LabelItem(
+                                title = stringResource(id = R.string.settings_netease_base_url),
+                                desc = NcmApiClient.baseUrl.ifBlank {
+                                    stringResource(id = R.string.settings_netease_not_configured)
+                                }
+                            ) {
+                                navController.toUI(UI.Settings.Account)
+                            }
+                        }
+
+                        GroupSpacerMedium()
                         ListHeader(stringResource(id = R.string.page_library_title))
                         RoundColumn {
-                            SwitchItem(
-                                title = stringResource(id = R.string.settings_library_refresh_everytime),
-                                onClick = {
-                                    SettingsLibrary.RefreshEveryTime =
-                                        !SettingsLibrary.RefreshEveryTime
-                                },
-                                checkedLambda = { SettingsLibrary.RefreshEveryTime }
-                            )
-
-                            Divider()
                             LabelItem(title = stringResource(id = R.string.settings_library_overview)) {
                                 navController.toUI(UI.Settings.LibraryOverview)
                             }

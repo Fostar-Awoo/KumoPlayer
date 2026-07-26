@@ -35,6 +35,7 @@ interface UI {
     interface Settings {
         companion object {
             const val Main = "Main"
+            const val Account = "Account"
             const val LibraryOverview = "LibraryOverview"
 
             const val LyricGetter = "LyricGetter"

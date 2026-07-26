@@ -2,6 +2,7 @@ package yos.music.player.data.netease.api
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import android.util.Base64
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -9,7 +10,7 @@ object NcmRepository {
 
     private const val OUTER_SONG_URL = "https://music.163.com/song/media/outer/url?id=%d.mp3"
 
-    data class QrLoginSession(val key: String, val image: String)
+    data class QrLoginSession(val key: String, val image: ByteArray)
 
     private fun api(): NeteaseMusicApi? = NcmApiClient.createService(NeteaseMusicApi::class.java)
 
@@ -140,8 +141,17 @@ object NcmRepository {
         val key = keyResponse?.data?.unikey
             ?: return Result.failure(IllegalStateException("API 未返回二维码登录密钥"))
         val qrResponse = safeCall { qrCreate(key) }.getOrElse { return Result.failure(it) }
-        val image = qrResponse?.data?.qrimg ?: qrResponse?.data?.qrurl
-            ?: return Result.failure(IllegalStateException("API 未返回登录二维码"))
+        val encodedImage = qrResponse?.data?.qrimg
+            ?: return Result.failure(IllegalStateException("API 未返回二维码图片，请确认服务支持 qrimg"))
+        val image = runCatching {
+            val base64 = encodedImage.substringAfter("base64,", encodedImage).trim()
+            Base64.decode(base64, Base64.DEFAULT)
+        }.getOrElse {
+            return Result.failure(IllegalStateException("API 返回的二维码图片格式无效", it))
+        }
+        if (image.isEmpty()) {
+            return Result.failure(IllegalStateException("API 返回的二维码图片为空"))
+        }
         return Result.success(QrLoginSession(key, image))
     }
 
