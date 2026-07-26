@@ -129,4 +129,11 @@
     <string name="settings_performance_ui_nowplaying_show_volume_bar">音量バーを表示</string>
     <string name="settings_performance_ui_nowplaying_show_volume_bar_desc">再生画面の下部に音量調節バーを表示します。</string>
     <string name="settings_performance_ui_theme">テーマ</string>
+    <string name="nowplaying_more_add_to_liked">お気に入りの曲に追加</string>
+    <string name="nowplaying_more_add_to_playlist">プレイリストに追加</string>
+    <string name="nowplaying_more_go_artist">アーティストを表示</string>
+    <string name="nowplaying_more_go_album">アルバムを表示</string>
+    <string name="nowplaying_more_playlists_loading">読み込み中…</string>
+    <string name="nowplaying_more_playlists_empty">プレイリストがありません。</string>
+    <string name="nowplaying_more_remove_from_liked">お気に入りの曲から削除</string>
 </resources>

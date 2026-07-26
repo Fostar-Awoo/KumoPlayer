@@ -129,4 +129,11 @@
     <string name="settings_performance_ui_nowplaying_show_volume_bar">显示音量条</string>
     <string name="settings_performance_ui_nowplaying_show_volume_bar_desc">在播放界面的下部显示音量调节条。</string>
     <string name="settings_performance_ui_theme">主题</string>
+    <string name="nowplaying_more_add_to_liked">添加到喜欢的歌曲</string>
+    <string name="nowplaying_more_add_to_playlist">添加到歌单</string>
+    <string name="nowplaying_more_go_artist">查看歌手</string>
+    <string name="nowplaying_more_go_album">查看专辑</string>
+    <string name="nowplaying_more_playlists_loading">正在载入…</string>
+    <string name="nowplaying_more_playlists_empty">暂无歌单。</string>
+    <string name="nowplaying_more_remove_from_liked">从喜欢的歌曲中移除</string>
 </resources>

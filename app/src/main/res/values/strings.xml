@@ -131,4 +131,11 @@
     <string name="settings_performance_ui_nowplaying_show_volume_bar">Show Volume Bar</string>
     <string name="settings_performance_ui_nowplaying_show_volume_bar_desc">Display the volume adjustment bar at the bottom of the playback page.</string>
     <string name="settings_performance_ui_theme">Theme</string>
+    <string name="nowplaying_more_add_to_liked">Add to Liked Songs</string>
+    <string name="nowplaying_more_add_to_playlist">Add to Playlist</string>
+    <string name="nowplaying_more_go_artist">Go to Artist</string>
+    <string name="nowplaying_more_go_album">Go to Album</string>
+    <string name="nowplaying_more_playlists_loading">Loading…</string>
+    <string name="nowplaying_more_playlists_empty">No playlists yet.</string>
+    <string name="nowplaying_more_remove_from_liked">Remove from Liked Songs</string>
 </resources>

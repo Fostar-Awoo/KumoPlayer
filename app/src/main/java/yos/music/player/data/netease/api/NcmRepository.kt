@@ -137,9 +137,9 @@ object NcmRepository {
         return res.getOrNull()?.result
     }
 
-    suspend fun getLikeList(uid: Long): List<Long> {
+    suspend fun getLikeList(uid: Long): List<Long>? {
         val res = safeCall { likelist(uid) }
-        return res.getOrNull()?.ids ?: emptyList()
+        return res.getOrNull()?.ids
     }
 
     suspend fun addSongToPlaylist(pid: String, trackId: Long): Result<NcmResponse<*>?> {

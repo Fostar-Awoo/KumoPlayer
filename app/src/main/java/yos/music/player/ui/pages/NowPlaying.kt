@@ -126,6 +126,20 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
+import yos.music.player.data.libraries.MusicLibrary
+import yos.music.player.data.netease.api.NcmPlaylist
+import yos.music.player.data.objects.LibraryObject
+import yos.music.player.data.objects.LikedSongsObject
 import yos.music.player.R
 import yos.music.player.code.MediaController
 import yos.music.player.code.MediaController.mediaControl
@@ -455,10 +469,9 @@ fun NowPlaying(
                                                     }
 
                                                     YosWrapper {
-                                                        ActionButtonsRow {
+                                                        ActionButtonsRow(navController) {
                                                             it
                                                         }
-                                                        MoreMenuPopup(navController)
                                                     }
                                                 }
                                             }
@@ -477,6 +490,7 @@ fun NowPlaying(
                                                 ),
                                                 visible = isVisible
                                             ),
+                                            navController = navController,
                                             albumUrlLambda = {
                                                 thisMusicPlaying.value?.coverUrl?.let(Uri::parse)
                                                     ?: thisMusicPlaying.value?.thumb
@@ -502,6 +516,7 @@ fun NowPlaying(
                                                 ),
                                                 visible = isVisible
                                             ),
+                                            navController = navController,
                                             albumUrlLambda = {
                                                 thisMusicPlaying.value?.thumb
                                             },
@@ -1201,64 +1216,322 @@ private fun Lyric(
     }
 }
 
-private val moreMenuMusic = androidx.compose.runtime.mutableStateOf<YosMediaItem?>(null)
-private val moreMenuExpanded = androidx.compose.runtime.mutableStateOf(false)
+private val moreMenuShape = YosRoundedCornerShape(14.dp)
+private val moreMenuBackground = Color(0xF5202022)
+private val moreMenuDividerColor = Color.White.copy(alpha = 0.1f)
+
+private enum class MoreMenuPage { Main, Playlists }
 
 @Composable
-private fun MoreMenuPopup(navController: NavController) {
-    if (!moreMenuExpanded.value) return
-    val music = moreMenuMusic.value ?: return
-    androidx.compose.ui.window.Popup(
-        onDismissRequest = { moreMenuExpanded.value = false },
-        alignment = androidx.compose.ui.Alignment.Center
+private fun MoreMenuPopup(
+    expanded: MutableState<Boolean>,
+    musicPlayingLambda: () -> YosMediaItem?,
+    navController: NavController
+) {
+    val transitionState = remember { MutableTransitionState(false) }
+    transitionState.targetState = expanded.value
+    if (!transitionState.currentState && !transitionState.targetState) return
+
+    val density = LocalDensity.current
+    Popup(
+        alignment = Alignment.TopEnd,
+        offset = with(density) { IntOffset(6.dp.roundToPx(), 38.dp.roundToPx()) },
+        onDismissRequest = { expanded.value = false },
+        properties = PopupProperties(focusable = true)
     ) {
-        androidx.compose.foundation.layout.Column(
-            modifier = androidx.compose.ui.Modifier
-                .fillMaxWidth(0.8f)
-                .background(
-                    androidx.compose.ui.graphics.Color(0xF2E9E9E9) withNight androidx.compose.ui.graphics.Color(0xFA161616),
-                    androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
-                )
-                .padding(20.dp)
+        AnimatedVisibility(
+            visibleState = transitionState,
+            enter = fadeIn(TweenSpec(160)) + scaleIn(
+                animationSpec = SpringSpec(
+                    dampingRatio = 0.85f,
+                    stiffness = 900f
+                ),
+                initialScale = 0.6f,
+                transformOrigin = TransformOrigin(0.9f, 0f)
+            ),
+            exit = fadeOut(TweenSpec(140)) + scaleOut(
+                animationSpec = TweenSpec(140),
+                targetScale = 0.8f,
+                transformOrigin = TransformOrigin(0.9f, 0f)
+            )
         ) {
-            Text("More", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            Spacer(modifier = androidx.compose.ui.Modifier.height(12.dp))
-            MoreMenuItem("Add to Playlist") {
-                music.neteaseId?.let { id ->
-                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                        val pid = ""
-                        NcmRepository.addSongToPlaylist(pid, id)
-                    }
-                }
-                moreMenuExpanded.value = false
+            MoreMenuContent(
+                musicPlayingLambda = musicPlayingLambda,
+                navController = navController,
+                onDismiss = { expanded.value = false }
+            )
+        }
+    }
+}
+
+@Composable
+private fun MoreMenuContent(
+    musicPlayingLambda: () -> YosMediaItem?,
+    navController: NavController,
+    onDismiss: () -> Unit
+) {
+    val music = musicPlayingLambda() ?: return
+    val page = remember { mutableStateOf(MoreMenuPage.Main) }
+
+    LaunchedEffect(Unit) {
+        // 打开菜单时与服务端同步一次收藏状态
+        LikedSongsObject.refresh(force = true)
+    }
+
+    Column(
+        modifier = Modifier
+            .width(256.dp)
+            .shadow(elevation = 24.dp, shape = moreMenuShape)
+            .background(moreMenuBackground, moreMenuShape)
+            .clip(moreMenuShape)
+            .animateContentSize(SpringSpec(dampingRatio = 1f, stiffness = 1600f))
+    ) {
+        AnimatedContent(
+            targetState = page.value,
+            transitionSpec = {
+                fadeIn(TweenSpec(160)) togetherWith fadeOut(TweenSpec(120))
             }
-            MoreMenuItem("Go to Artist") {
-                music.artistIds?.firstOrNull()?.let {
-                    navController.navigate("${UI.ArtistInfo}/$it")
-                }
-                moreMenuExpanded.value = false
-            }
-            MoreMenuItem("Go to Album") {
-                moreMenuExpanded.value = false
+        ) { currentPage ->
+            when (currentPage) {
+                MoreMenuPage.Main -> MoreMenuMainPage(
+                    music = music,
+                    onAddToPlaylist = { page.value = MoreMenuPage.Playlists },
+                    navController = navController,
+                    onDismiss = onDismiss
+                )
+
+                MoreMenuPage.Playlists -> MoreMenuPlaylistsPage(
+                    music = music,
+                    onBack = { page.value = MoreMenuPage.Main },
+                    onDismiss = onDismiss
+                )
             }
         }
     }
 }
 
 @Composable
-private fun MoreMenuItem(label: String, onClick: () -> Unit) {
-    Text(
-        text = label,
-        fontSize = 16.sp,
-        modifier = androidx.compose.ui.Modifier
+private fun MoreMenuMainPage(
+    music: YosMediaItem,
+    onAddToPlaylist: () -> Unit,
+    navController: NavController,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val localAlbumAvailable = remember(music) {
+        !music.album.isNullOrEmpty() && MusicLibrary.Album[music.album].isNotEmpty()
+    }
+
+    Column {
+        var needDivider = false
+        if (music.neteaseId != null) {
+            val liked = LikedSongsObject.isLiked(music.neteaseId)
+            MoreMenuItem(
+                label = stringResource(
+                    id = if (liked) R.string.nowplaying_more_remove_from_liked
+                    else R.string.nowplaying_more_add_to_liked
+                ),
+                iconRes = if (liked) R.drawable.ic_more_menu_heart_fill
+                else R.drawable.ic_more_menu_heart
+            ) {
+                Vibrator.click(context)
+                scope.launch(Dispatchers.IO) {
+                    LikedSongsObject.setLiked(music.neteaseId, !liked)
+                }
+                onDismiss()
+            }
+            MoreMenuDivider()
+            MoreMenuItem(
+                label = stringResource(id = R.string.nowplaying_more_add_to_playlist),
+                iconRes = R.drawable.ic_more_menu_playlist_add
+            ) {
+                Vibrator.click(context)
+                onAddToPlaylist()
+            }
+            needDivider = true
+        }
+        if (!music.artistIds.isNullOrEmpty()) {
+            if (needDivider) MoreMenuDivider()
+            MoreMenuItem(
+                label = stringResource(id = R.string.nowplaying_more_go_artist),
+                iconRes = R.drawable.ic_more_menu_artist
+            ) {
+                Vibrator.click(context)
+                onDismiss()
+                music.artistIds.firstOrNull()?.let {
+                    navController.navigate("${UI.ArtistInfo}/$it")
+                }
+            }
+            needDivider = true
+        }
+        if (localAlbumAvailable) {
+            if (needDivider) MoreMenuDivider()
+            MoreMenuItem(
+                label = stringResource(id = R.string.nowplaying_more_go_album),
+                iconRes = R.drawable.ic_more_menu_album
+            ) {
+                Vibrator.click(context)
+                onDismiss()
+                music.album?.let {
+                    LibraryObject.setTargetAlbumName(it)
+                    navController.navigate(UI.AlbumInfo)
+                }
+            }
+            needDivider = true
+        }
+        if (!needDivider) {
+            // 没有可用操作时给出占位，避免空面板
+            MoreMenuHintRow(text = stringResource(id = R.string.nowplaying_more_playlists_empty))
+        }
+    }
+}
+
+@Composable
+private fun MoreMenuPlaylistsPage(
+    music: YosMediaItem,
+    onBack: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val playlists = remember { mutableStateOf<List<NcmPlaylist>?>(null) }
+
+    LaunchedEffect(Unit) {
+        val uid = NcmApiClient.userId
+        val lists = withContext(Dispatchers.IO) {
+            NcmRepository.getUserPlaylists(uid)
+        }
+        playlists.value = lists.filter { it.creator == null || it.creator.userId == uid }
+    }
+
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = {
+                    Vibrator.click(context)
+                    onBack()
+                })
+                .height(46.dp)
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                painterResource(id = R.drawable.ic_back),
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.8f),
+                modifier = Modifier
+                    .width(8.dp)
+                    .height(14.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = stringResource(id = R.string.nowplaying_more_add_to_playlist),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        MoreMenuDivider()
+
+        val currentLists = playlists.value
+        when {
+            currentLists == null ->
+                MoreMenuHintRow(text = stringResource(id = R.string.nowplaying_more_playlists_loading))
+
+            currentLists.isEmpty() ->
+                MoreMenuHintRow(text = stringResource(id = R.string.nowplaying_more_playlists_empty))
+
+            else ->
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 288.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    currentLists.forEachIndexed { index, playlist ->
+                        if (index > 0) MoreMenuDivider()
+                        MoreMenuItem(label = playlist.name, iconRes = null) {
+                            Vibrator.click(context)
+                            music.neteaseId?.let { id ->
+                                scope.launch(Dispatchers.IO) {
+                                    NcmRepository.addSongToPlaylist(playlist.id.toString(), id)
+                                }
+                            }
+                            onDismiss()
+                        }
+                    }
+                }
+        }
+    }
+}
+
+@Composable
+private fun MoreMenuItem(label: String, iconRes: Int?, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(vertical = 12.dp)
+            .height(46.dp)
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            fontSize = 16.sp,
+            color = Color.White,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        if (iconRes != null) {
+            Spacer(modifier = Modifier.width(12.dp))
+            Icon(
+                painterResource(id = iconRes),
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(21.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun MoreMenuHintRow(text: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(46.dp)
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = text,
+            fontSize = 15.sp,
+            color = Color.White.copy(alpha = 0.5f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun MoreMenuDivider() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(0.5.dp)
+            .background(moreMenuDividerColor)
     )
 }
 
 @Composable
-private fun ActionButtonsRow(musicPlayingLambda: () -> YosMediaItem?) {
+private fun ActionButtonsRow(
+    navController: NavController,
+    musicPlayingLambda: () -> YosMediaItem?
+) {
     Row(
         modifier = Modifier
             .overlayEffect(),
@@ -1267,6 +1540,11 @@ private fun ActionButtonsRow(musicPlayingLambda: () -> YosMediaItem?) {
         val dp = 28.dp
 
         val context = LocalContext.current
+        val scope = rememberCoroutineScope()
+
+        LaunchedEffect(Unit) {
+            LikedSongsObject.refresh()
+        }
 
         Box(
             modifier = Modifier
@@ -1275,8 +1553,9 @@ private fun ActionButtonsRow(musicPlayingLambda: () -> YosMediaItem?) {
                         val musicPlaying = musicPlayingLambda()
                         if (musicPlaying != null && musicPlaying.neteaseId != null) {
                             Vibrator.click(context)
-                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                                NcmRepository.likeSong(musicPlaying.neteaseId, true)
+                            val target = !LikedSongsObject.isLiked(musicPlaying.neteaseId)
+                            scope.launch(Dispatchers.IO) {
+                                LikedSongsObject.setLiked(musicPlaying.neteaseId, target)
                             }
                         }
                     },
@@ -1286,50 +1565,22 @@ private fun ActionButtonsRow(musicPlayingLambda: () -> YosMediaItem?) {
                 .size(dp),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                painterResource(id = R.drawable.ic_nowplaying_favorite),
-                contentDescription = null,
-                modifier = Modifier
-                    .overlayEffect()
-                    .size(dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.width(14.dp))
-
-        Box(
-            modifier = Modifier
-                .graphicsLayer {
-                    rotationZ = 90f
-                    compositingStrategy = CompositingStrategy.ModulateAlpha
-                }
-                .clickable(
-                    onClick = {
-                        // Show more menu: add to playlist, go to artist, go to album
-                        val music = musicPlayingLambda()
-                        moreMenuMusic.value = music
-                        moreMenuExpanded.value = true
-                    },
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() })
-                .size(dp),
-            contentAlignment = Alignment.Center
-        ) {
             AnimatedContent(
-                targetState = false,
+                targetState = LikedSongsObject.isLiked(musicPlayingLambda()?.neteaseId),
                 transitionSpec = {
-                    fadeIn() togetherWith fadeOut()
-                }) {
-                if (it) {
+                    (fadeIn() + scaleIn(initialScale = 0.7f)) togetherWith
+                            (fadeOut() + scaleOut(targetScale = 0.7f))
+                }) { liked ->
+                if (liked) {
                     Icon(
-                        painterResource(id = R.drawable.ic_nowplaying_more_fill),
+                        painterResource(id = R.drawable.ic_nowplaying_favorited),
                         contentDescription = null,
                         modifier = Modifier
                             .size(dp)
                     )
                 } else {
                     Icon(
-                        painterResource(id = R.drawable.ic_nowplaying_more),
+                        painterResource(id = R.drawable.ic_nowplaying_favorite),
                         contentDescription = null,
                         modifier = Modifier
                             .overlayEffect()
@@ -1338,12 +1589,65 @@ private fun ActionButtonsRow(musicPlayingLambda: () -> YosMediaItem?) {
                 }
             }
         }
+
+        Spacer(modifier = Modifier.width(14.dp))
+
+        val moreMenuExpanded = remember { mutableStateOf(false) }
+
+        Box {
+            Box(
+                modifier = Modifier
+                    .graphicsLayer {
+                        rotationZ = 90f
+                        compositingStrategy = CompositingStrategy.ModulateAlpha
+                    }
+                    .clickable(
+                        onClick = {
+                            Vibrator.click(context)
+                            moreMenuExpanded.value = true
+                        },
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() })
+                    .size(dp),
+                contentAlignment = Alignment.Center
+            ) {
+                AnimatedContent(
+                    targetState = moreMenuExpanded.value,
+                    transitionSpec = {
+                        fadeIn() togetherWith fadeOut()
+                    }) {
+                    if (it) {
+                        Icon(
+                            painterResource(id = R.drawable.ic_nowplaying_more_fill),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(dp)
+                        )
+                    } else {
+                        Icon(
+                            painterResource(id = R.drawable.ic_nowplaying_more),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .overlayEffect()
+                                .size(dp)
+                        )
+                    }
+                }
+            }
+
+            MoreMenuPopup(
+                expanded = moreMenuExpanded,
+                musicPlayingLambda = musicPlayingLambda,
+                navController = navController
+            )
+        }
     }
 }
 
 @Composable
 private fun PlayingBar(
     modifier: Modifier,
+    navController: NavController,
     albumUrlLambda: () -> Uri?,
     musicPlayingLambda: () -> YosMediaItem?,
     onAlbumClick: () -> Unit
@@ -1395,7 +1699,7 @@ private fun PlayingBar(
         }
 
         YosWrapper {
-            ActionButtonsRow(musicPlayingLambda)
+            ActionButtonsRow(navController, musicPlayingLambda)
         }
     }
 
