@@ -36,6 +36,12 @@
 -keep class * extends com.google.gson.reflect.TypeToken
 -keepattributes AnnotationDefault,RuntimeVisibleAnnotations,RuntimeVisibleParameterAnnotations
 
+# Netease API response models are instantiated and populated by Gson reflection.
+# They intentionally use Kotlin property names instead of @SerializedName, so allowing R8
+# to rename fields or merge these classes makes generic payloads deserialize as LinkedTreeMap
+# and causes a ClassCastException when the repository reads NcmResponse<T>.data.
+-keep class yos.music.player.data.netease.api.Ncm* { *; }
+
 # Retrofit reflects on suspend functions. R8 full mode otherwise strips the generic
 # Continuation<Response<T>> signature and Retrofit receives a raw Class instead of a
 # ParameterizedType at runtime.

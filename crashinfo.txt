@@ -1,0 +1,31 @@
+Application Config: 
+- Build Version: 1.0.0 
+- Build Code: 1 
+- Current Date: 2026-07-26 10:38:19 
+
+Device Config: 
+- Model: V2157A 
+- Manufacturer: vivo 
+- SDK: 34 
+- ABIs: arm64-v8a, armeabi-v7a, armeabi 
+- Rooted: false 
+- Tablet: false 
+- Emulator: false 
+
+Stack Trace: 
+java.lang.ClassCastException
+	at n5.U.m(SourceFile:84)
+	at n5.F.invokeSuspend(SourceFile:12)
+	at j4.a.resumeWith(SourceFile:9)
+	at A4.E.run(SourceFile:117)
+	at I0.h0.G(SourceFile:7)
+	at I0.g0.run(SourceFile:3)
+	at android.os.Handler.handleCallback(Handler.java:1013)
+	at android.os.Handler.dispatchMessage(Handler.java:101)
+	at android.os.Looper.loopOnce(Looper.java:226)
+	at android.os.Looper.loop(Looper.java:328)
+	at android.app.ActivityThread.main(ActivityThread.java:9244)
+	at java.lang.reflect.Method.invoke(Native Method)
+	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:594)
+	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1099)
+	Suppressed: F4.f: [I0.K0@599669a, W.g@4afcbcb, B{Cancelling}@8f3cfa8, h0@d04cac1]
