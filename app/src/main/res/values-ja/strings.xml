@@ -136,4 +136,7 @@
     <string name="nowplaying_more_playlists_loading">読み込み中…</string>
     <string name="nowplaying_more_playlists_empty">プレイリストがありません。</string>
     <string name="nowplaying_more_remove_from_liked">お気に入りの曲から削除</string>
+    <string name="artist_latest_release">最新リリース</string>
+    <string name="artist_top_songs">トップソング</string>
+    <string name="artist_singles_eps">シングル&amp;EP</string>
 </resources>

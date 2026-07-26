@@ -138,4 +138,7 @@
     <string name="nowplaying_more_playlists_loading">Loading…</string>
     <string name="nowplaying_more_playlists_empty">No playlists yet.</string>
     <string name="nowplaying_more_remove_from_liked">Remove from Liked Songs</string>
+    <string name="artist_latest_release">Latest Release</string>
+    <string name="artist_top_songs">Top Songs</string>
+    <string name="artist_singles_eps">Singles &amp; EPs</string>
 </resources>

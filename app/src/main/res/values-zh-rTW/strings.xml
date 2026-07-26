@@ -136,4 +136,7 @@
     <string name="nowplaying_more_playlists_loading">正在載入…</string>
     <string name="nowplaying_more_playlists_empty">尚無歌單。</string>
     <string name="nowplaying_more_remove_from_liked">從喜歡的歌曲中移除</string>
+    <string name="artist_latest_release">最新發行</string>
+    <string name="artist_top_songs">熱門歌曲</string>
+    <string name="artist_singles_eps">單曲與 EP</string>
 </resources>

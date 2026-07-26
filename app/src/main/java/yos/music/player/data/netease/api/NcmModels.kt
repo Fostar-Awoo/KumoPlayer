@@ -151,7 +151,9 @@ data class NcmAlbum(
     val id: Long,
     val name: String,
     val picUrl: String?,
-    val artist: NcmArtist?
+    val artist: NcmArtist?,
+    val publishTime: Long? = null,
+    val size: Int? = null
 ) : Parcelable
 
 @Parcelize
