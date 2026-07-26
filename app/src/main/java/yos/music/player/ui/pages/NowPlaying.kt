@@ -219,6 +219,7 @@ fun NowPlaying(
     isPlayingOnChanged: (Boolean) -> Unit,
     nowPageLambda: () -> String,
     showMiniPlayer: () -> Boolean,
+    collapseNowPlaying: () -> Unit = {},
     nowPageOnChanged: (String) -> Unit
 ) =
     Surface(
@@ -458,6 +459,7 @@ fun NowPlaying(
                                                                     enabled = it?.artistIds?.isNotEmpty() == true,
                                                                     onClick = {
                                                                         it?.artistIds?.firstOrNull()?.let { artistId ->
+                                                                            collapseNowPlaying()
                                                                             navController.navigate("${UI.ArtistInfo}/$artistId")
                                                                         }
                                                                     }
@@ -469,7 +471,10 @@ fun NowPlaying(
                                                     }
 
                                                     YosWrapper {
-                                                        ActionButtonsRow(navController) {
+                                                        ActionButtonsRow(
+                                                            navController,
+                                                            collapseNowPlaying
+                                                        ) {
                                                             it
                                                         }
                                                     }
@@ -491,6 +496,7 @@ fun NowPlaying(
                                                 visible = isVisible
                                             ),
                                             navController = navController,
+                                            collapseNowPlaying = collapseNowPlaying,
                                             albumUrlLambda = {
                                                 thisMusicPlaying.value?.coverUrl?.let(Uri::parse)
                                                     ?: thisMusicPlaying.value?.thumb
@@ -517,6 +523,7 @@ fun NowPlaying(
                                                 visible = isVisible
                                             ),
                                             navController = navController,
+                                            collapseNowPlaying = collapseNowPlaying,
                                             albumUrlLambda = {
                                                 thisMusicPlaying.value?.thumb
                                             },
@@ -1226,7 +1233,8 @@ private enum class MoreMenuPage { Main, Playlists }
 private fun MoreMenuPopup(
     expanded: MutableState<Boolean>,
     musicPlayingLambda: () -> YosMediaItem?,
-    navController: NavController
+    navController: NavController,
+    collapseNowPlaying: () -> Unit
 ) {
     val transitionState = remember { MutableTransitionState(false) }
     transitionState.targetState = expanded.value
@@ -1258,6 +1266,7 @@ private fun MoreMenuPopup(
             MoreMenuContent(
                 musicPlayingLambda = musicPlayingLambda,
                 navController = navController,
+                collapseNowPlaying = collapseNowPlaying,
                 onDismiss = { expanded.value = false }
             )
         }
@@ -1268,6 +1277,7 @@ private fun MoreMenuPopup(
 private fun MoreMenuContent(
     musicPlayingLambda: () -> YosMediaItem?,
     navController: NavController,
+    collapseNowPlaying: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val music = musicPlayingLambda() ?: return
@@ -1297,6 +1307,7 @@ private fun MoreMenuContent(
                     music = music,
                     onAddToPlaylist = { page.value = MoreMenuPage.Playlists },
                     navController = navController,
+                    collapseNowPlaying = collapseNowPlaying,
                     onDismiss = onDismiss
                 )
 
@@ -1315,6 +1326,7 @@ private fun MoreMenuMainPage(
     music: YosMediaItem,
     onAddToPlaylist: () -> Unit,
     navController: NavController,
+    collapseNowPlaying: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -1360,6 +1372,7 @@ private fun MoreMenuMainPage(
                 Vibrator.click(context)
                 onDismiss()
                 music.artistIds.firstOrNull()?.let {
+                    collapseNowPlaying()
                     navController.navigate("${UI.ArtistInfo}/$it")
                 }
             }
@@ -1374,6 +1387,7 @@ private fun MoreMenuMainPage(
                 Vibrator.click(context)
                 onDismiss()
                 music.album?.let {
+                    collapseNowPlaying()
                     LibraryObject.setTargetAlbumName(it)
                     navController.navigate(UI.AlbumInfo)
                 }
@@ -1530,6 +1544,7 @@ private fun MoreMenuDivider() {
 @Composable
 private fun ActionButtonsRow(
     navController: NavController,
+    collapseNowPlaying: () -> Unit,
     musicPlayingLambda: () -> YosMediaItem?
 ) {
     Row(
@@ -1638,7 +1653,8 @@ private fun ActionButtonsRow(
             MoreMenuPopup(
                 expanded = moreMenuExpanded,
                 musicPlayingLambda = musicPlayingLambda,
-                navController = navController
+                navController = navController,
+                collapseNowPlaying = collapseNowPlaying
             )
         }
     }
@@ -1648,6 +1664,7 @@ private fun ActionButtonsRow(
 private fun PlayingBar(
     modifier: Modifier,
     navController: NavController,
+    collapseNowPlaying: () -> Unit,
     albumUrlLambda: () -> Uri?,
     musicPlayingLambda: () -> YosMediaItem?,
     onAlbumClick: () -> Unit
@@ -1699,7 +1716,7 @@ private fun PlayingBar(
         }
 
         YosWrapper {
-            ActionButtonsRow(navController, musicPlayingLambda)
+            ActionButtonsRow(navController, collapseNowPlaying, musicPlayingLambda)
         }
     }
 

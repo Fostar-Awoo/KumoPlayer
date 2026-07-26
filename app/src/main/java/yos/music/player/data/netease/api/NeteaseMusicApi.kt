@@ -67,6 +67,9 @@ interface NeteaseMusicApi {
     @GET("cloudsearch")
     suspend fun cloudSearch(@Query("keywords") keywords: String, @Query("type") type: Int = 1, @Query("limit") limit: Int = 30): Response<NcmSearchResponse>
 
+    @GET("search/suggest")
+    suspend fun searchSuggestMobile(@Query("keywords") keywords: String, @Query("type") type: String = "mobile"): Response<NcmSearchSuggestMobileResponse>
+
     @GET("song/url/v1")
     suspend fun songUrl(@Query("id") id: String, @Query("level") level: String = "exhigh"): Response<NcmSongUrlResponse>
 

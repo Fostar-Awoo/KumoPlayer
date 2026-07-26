@@ -16,3 +16,4 @@ local.properties
 /app/debug/
 /app/release/
 PLANS.md
+.kotlin/

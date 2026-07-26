@@ -188,6 +188,10 @@ data class NcmSearchResult(
     val albums: List<NcmAlbum>?,
     val playlists: List<NcmPlaylist>?
 ) : Parcelable
+
+data class NcmSearchSuggestMobileResponse(val code: Int, val result: NcmSuggestMobileResult?)
+data class NcmSuggestMobileResult(val allMatch: List<NcmSuggestKeyword>?)
+data class NcmSuggestKeyword(val keyword: String?)
 // endregion
 
 // region Like list

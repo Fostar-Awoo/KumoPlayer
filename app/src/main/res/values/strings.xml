@@ -141,4 +141,14 @@
     <string name="artist_latest_release">Latest Release</string>
     <string name="artist_top_songs">Top Songs</string>
     <string name="artist_singles_eps">Singles &amp; EPs</string>
+    <string name="search_tab_all">Top Results</string>
+    <string name="search_tab_songs">Songs</string>
+    <string name="search_tab_artists">Artists</string>
+    <string name="search_tab_albums">Albums</string>
+    <string name="search_type_song">Song</string>
+    <string name="search_type_artist">Artist</string>
+    <string name="search_type_album">Album</string>
+    <string name="search_hint">Search for songs, artists, and albums.</string>
+    <string name="search_error">Search failed. Check your network or API settings.</string>
+    <string name="search_no_results">No results found.</string>
 </resources>

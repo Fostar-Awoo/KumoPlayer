@@ -1,6 +1,8 @@
 package yos.music.player.data.netease.api
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import android.util.Base64
 import kotlin.coroutines.resume
@@ -135,6 +137,36 @@ object NcmRepository {
     suspend fun search(keyword: String, type: Int = 1): NcmSearchResult? {
         val res = safeCall { cloudSearch(keyword, type) }
         return res.getOrNull()?.result
+    }
+
+    data class NcmSearchBundle(
+        val songs: List<NcmSong>,
+        val artists: List<NcmArtist>,
+        val albums: List<NcmAlbum>
+    )
+
+    /** 并行搜索单曲、歌手、专辑；三类请求全部失败时返回 null */
+    suspend fun searchAll(keyword: String): NcmSearchBundle? = coroutineScope {
+        val songsDeferred = async { search(keyword, type = 1) }
+        val artistsDeferred = async { search(keyword, type = 100) }
+        val albumsDeferred = async { search(keyword, type = 10) }
+        val songs = songsDeferred.await()
+        val artists = artistsDeferred.await()
+        val albums = albumsDeferred.await()
+        if (songs == null && artists == null && albums == null) {
+            null
+        } else {
+            NcmSearchBundle(
+                songs = songs?.songs ?: emptyList(),
+                artists = artists?.artists ?: emptyList(),
+                albums = albums?.albums ?: emptyList()
+            )
+        }
+    }
+
+    suspend fun getSearchSuggestions(keyword: String): List<String> {
+        val res = safeCall { searchSuggestMobile(keyword) }
+        return res.getOrNull()?.result?.allMatch?.mapNotNull { it.keyword } ?: emptyList()
     }
 
     suspend fun getLikeList(uid: Long): List<Long>? {

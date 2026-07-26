@@ -139,4 +139,14 @@
     <string name="artist_latest_release">最新リリース</string>
     <string name="artist_top_songs">トップソング</string>
     <string name="artist_singles_eps">シングル&amp;EP</string>
+    <string name="search_tab_all">トップ結果</string>
+    <string name="search_tab_songs">曲</string>
+    <string name="search_tab_artists">アーティスト</string>
+    <string name="search_tab_albums">アルバム</string>
+    <string name="search_type_song">曲</string>
+    <string name="search_type_artist">アーティスト</string>
+    <string name="search_type_album">アルバム</string>
+    <string name="search_hint">曲、アーティスト、アルバムを検索。</string>
+    <string name="search_error">検索に失敗しました。ネットワークまたは API 設定を確認してください。</string>
+    <string name="search_no_results">結果が見つかりませんでした。</string>
 </resources>
