@@ -7,6 +7,8 @@ import kotlin.coroutines.suspendCoroutine
 
 object NcmRepository {
 
+    private const val OUTER_SONG_URL = "https://music.163.com/song/media/outer/url?id=%d.mp3"
+
     data class QrLoginSession(val key: String, val image: String)
 
     private fun api(): NeteaseMusicApi? = NcmApiClient.createService(NeteaseMusicApi::class.java)
@@ -66,16 +68,15 @@ object NcmRepository {
         return res.getOrNull()?.songs ?: emptyList()
     }
 
-    suspend fun getSongUrl(id: Long): String? {
-        return getSongUrls(listOf(id))[id]
+    /**
+     * 网易云歌曲外链地址。播放器请求该地址后会跟随 302 重定向播放实际音频。
+     */
+    fun getSongUrl(id: Long): String {
+        return OUTER_SONG_URL.format(id)
     }
 
-    suspend fun getSongUrls(ids: List<Long>): Map<Long, String> {
-        if (ids.isEmpty()) return emptyMap()
-        val res = safeCall { songUrl(ids.joinToString(",")) }
-        return res.getOrNull()?.data.orEmpty().mapNotNull { item ->
-            item.url?.let { item.id to it }
-        }.toMap()
+    fun getSongUrls(ids: List<Long>): Map<Long, String> {
+        return ids.distinct().associateWith(::getSongUrl)
     }
 
     suspend fun getLyric(id: Long): NcmLyricData? {

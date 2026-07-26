@@ -23,8 +23,11 @@ import androidx.media3.common.Player.REPEAT_MODE_OFF
 import androidx.media3.common.Player.REPEAT_MODE_ONE
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaController
@@ -203,25 +206,15 @@ object MediaController {
         play: Boolean = true
     ) {
         println("prepare $music")
-        // 网易云播放地址是有时效的。每次建立播放队列都重新获取，不能复用持久化的旧地址。
-        // 分批请求避免大歌单生成过长 URL，且某一批失败不会影响其他歌曲。
-        val urls = thisMusicList.mapNotNull(YosMediaItem::neteaseId)
-            .distinct()
-            .chunked(50)
-            .fold(mutableMapOf<Long, String>()) { result, ids ->
-                runCatching { NcmRepository.getSongUrls(ids) }
-                    .onSuccess(result::putAll)
-                    .onFailure { it.printStackTrace() }
-                result
-            }
+        // 使用网易云歌曲外链，Media3 会跟随响应重定向播放实际音频。
+        val urls = NcmRepository.getSongUrls(thisMusicList.mapNotNull(YosMediaItem::neteaseId))
         val resolvedList = thisMusicList.map { item ->
             val url = item.neteaseId?.let(urls::get)
             when {
                 url != null -> item.copy(audioUrl = url, uri = android.net.Uri.parse(url))
-                item.neteaseId != null -> item.copy(audioUrl = null, uri = null)
                 else -> item
             }
-        }.filter { it.uri != null }
+        }
         val resolvedMusic = resolvedList.firstOrNull { it.neteaseId == music.neteaseId }
             ?: resolvedList.firstOrNull { music.neteaseId == null && it.uri == music.uri }
 
@@ -466,6 +459,10 @@ class YosPlaybackService : MediaSessionService() {
             .setUsage(C.USAGE_MEDIA)
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
             .build()
+        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+            .setAllowCrossProtocolRedirects(true)
+            .setUserAgent("Mozilla/5.0 (Android) KumoPlayer/1.0")
+        val dataSourceFactory = DefaultDataSource.Factory(this, httpDataSourceFactory)
         val player = ExoPlayer.Builder(
             this,
             YosRenderFactory(this)
@@ -484,6 +481,7 @@ class YosPlaybackService : MediaSessionService() {
                     }
                 )
         )
+            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
             .setAudioAttributes(
                 audioAttributes,
                 SettingsLibrary.AudioAttributes
