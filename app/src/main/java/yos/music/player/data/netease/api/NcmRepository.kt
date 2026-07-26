@@ -1,0 +1,165 @@
+package yos.music.player.data.netease.api
+
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
+
+object NcmRepository {
+
+    data class QrLoginSession(val key: String, val image: String)
+
+    private fun api(): NeteaseMusicApi? = NcmApiClient.createService(NeteaseMusicApi::class.java)
+
+    suspend fun <T> safeCall(block: suspend NeteaseMusicApi.() -> retrofit2.Response<T>): Result<T?> =
+        withContext(Dispatchers.IO) {
+            try {
+                val api = api() ?: return@withContext Result.failure(IllegalStateException("API not configured"))
+                val resp = block(api)
+                if (resp.isSuccessful) {
+                    Result.success(resp.body())
+                } else {
+                    Result.failure(Exception("HTTP ${resp.code()}"))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun getRecommendSongs(): List<NcmSong> {
+        val res = safeCall { recommendSongs() }
+        return res.getOrNull()?.data?.dailySongs ?: emptyList()
+    }
+
+    suspend fun getRecommendPlaylists(): List<NcmPlaylist> {
+        val res = safeCall { recommendResource() }
+        return res.getOrNull()?.recommend ?: emptyList()
+    }
+
+    suspend fun getUserPlaylists(uid: Long): List<NcmPlaylist> {
+        val res = safeCall { userPlaylists(uid) }
+        return res.getOrNull()?.playlist ?: emptyList()
+    }
+
+    suspend fun getFollowedArtists(): List<NcmArtist> {
+        val res = safeCall { artistSublist() }
+        return res.getOrNull()?.data ?: emptyList()
+    }
+
+    suspend fun getSubscribedAlbums(): List<NcmAlbum> {
+        val res = safeCall { albumSublist() }
+        return res.getOrNull()?.data ?: emptyList()
+    }
+
+    suspend fun getCloudSongs(): List<NcmSong> {
+        val res = safeCall { userCloud() }
+        return res.getOrNull()?.data?.data?.mapNotNull { it.simpleSong } ?: emptyList()
+    }
+
+    suspend fun getPlaylistDetail(id: Long): NcmPlaylist? {
+        val res = safeCall { playlistDetail(id) }
+        return res.getOrNull()?.playlist
+    }
+
+    suspend fun getPlaylistTracks(id: Long): List<NcmSong> {
+        val res = safeCall { playlistTrackAll(id) }
+        return res.getOrNull()?.songs ?: emptyList()
+    }
+
+    suspend fun getSongUrl(id: Long): String? {
+        return getSongUrls(listOf(id))[id]
+    }
+
+    suspend fun getSongUrls(ids: List<Long>): Map<Long, String> {
+        if (ids.isEmpty()) return emptyMap()
+        val res = safeCall { songUrl(ids.joinToString(",")) }
+        return res.getOrNull()?.data.orEmpty().mapNotNull { item ->
+            item.url?.let { item.id to it }
+        }.toMap()
+    }
+
+    suspend fun getLyric(id: Long): NcmLyricData? {
+        val res = safeCall { lyric(id) }
+        return res.getOrNull()?.let { NcmLyricData(it.lrc, it.tlyric, it.romalrc) }
+    }
+
+    suspend fun getArtistDetail(id: Long): NcmArtistDetail? {
+        val res = safeCall { artistDetail(id) }
+        return res.getOrNull()?.data?.artist
+    }
+
+    suspend fun getArtistSongs(id: Long): List<NcmSong> {
+        val res = safeCall { artistSongs(id) }
+        return res.getOrNull()?.songs ?: emptyList()
+    }
+
+    suspend fun getArtistAlbums(id: Long): List<NcmAlbum> {
+        val res = safeCall { artistAlbums(id) }
+        return res.getOrNull()?.hotAlbums ?: emptyList()
+    }
+
+    suspend fun getAlbumSongs(id: Long): List<NcmSong> {
+        val res = safeCall { albumDetail(id) }
+        return res.getOrNull()?.songs ?: emptyList()
+    }
+
+    suspend fun search(keyword: String, type: Int = 1): NcmSearchResult? {
+        val res = safeCall { cloudSearch(keyword, type) }
+        return res.getOrNull()?.result
+    }
+
+    suspend fun getLikeList(uid: Long): List<Long> {
+        val res = safeCall { likelist(uid) }
+        return res.getOrNull()?.ids ?: emptyList()
+    }
+
+    suspend fun addSongToPlaylist(pid: String, trackId: Long): Result<NcmResponse<*>?> {
+        return safeCall { playlistTracksOp("add", pid, trackId.toString()) }
+    }
+
+    suspend fun likeSong(id: Long, like: Boolean = true): Result<NcmResponse<*>?> {
+        return safeCall { likeSong(id, like) }
+    }
+
+    suspend fun createQrLogin(): Result<QrLoginSession> {
+        val keyResponse = safeCall { qrKey() }.getOrElse { return Result.failure(it) }
+        val key = keyResponse?.data?.unikey
+            ?: return Result.failure(IllegalStateException("API 未返回二维码登录密钥"))
+        val qrResponse = safeCall { qrCreate(key) }.getOrElse { return Result.failure(it) }
+        val image = qrResponse?.data?.qrimg ?: qrResponse?.data?.qrurl
+            ?: return Result.failure(IllegalStateException("API 未返回登录二维码"))
+        return Result.success(QrLoginSession(key, image))
+    }
+
+    suspend fun checkQrLogin(key: String): Result<NcmQrCheck> {
+        val result = safeCall { qrCheck(key) }
+        return result.fold(
+            onSuccess = { response ->
+                response?.let(Result.Companion::success)
+                    ?: Result.failure(IllegalStateException("二维码状态响应为空"))
+            },
+            onFailure = Result.Companion::failure
+        )
+    }
+
+    suspend fun checkLoginStatus(): Boolean {
+        return try {
+            val api = api() ?: return false
+            val resp = withContext(Dispatchers.IO) { api.loginStatus() }
+            if (resp.isSuccessful) {
+                val profile = resp.body()?.data
+                if (profile != null) {
+                    @Suppress("UNCHECKED_CAST")
+                    val map = profile as? Map<String, Any>
+                    val account = map?.get("account") as? Map<String, Any>
+                    (account?.get("id") as? Number)?.toLong()?.let { NcmApiClient.userId = it }
+                }
+                NcmApiClient.userId != 0L
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+}

@@ -6,8 +6,10 @@
     <string name="permission_grant_button_negative">Ignore</string>
     <string name="page_home_title">Home</string>
     <string name="page_library_songs">Songs</string>
+    <string name="page_library_cloud_disk">Cloud Drive</string>
     <string name="page_settings_title">Settings</string>
     <string name="page_library_title">Library</string>
+    <string name="page_search_title">Search</string>
     <string name="home_recommend_title">Try These</string>
     <string name="home_recommend_subtitle">From Your Library</string>
     <string name="playlist_unavailable_title">Unable to Display Playlist</string>

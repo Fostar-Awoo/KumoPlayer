@@ -116,11 +116,13 @@ import yos.music.player.data.libraries.defaultTitle
 import yos.music.player.data.models.ImageViewModel
 import yos.music.player.data.models.MainViewModel
 import yos.music.player.data.models.MediaViewModel
+import yos.music.player.data.netease.api.NcmApiClient
 import yos.music.player.data.objects.MediaViewModelObject
 import yos.music.player.ui.UI
 import yos.music.player.ui.UI.Settings.Companion.ExoplayerSetting
 import yos.music.player.ui.pages.HomeNav
 import yos.music.player.ui.pages.NowPlaying
+import yos.music.player.ui.pages.WelcomeScreen
 import yos.music.player.ui.pages.NowPlayingPage.Album
 import yos.music.player.ui.pages.library.Library
 import yos.music.player.ui.pages.library.NormalMusic
@@ -210,6 +212,12 @@ class MainActivity : BaseActivity() {
                         }
                         // 逻辑初始化区域
                         val navController = rememberNavController()
+                        val initialRoute = remember {
+                            if (
+                                NcmApiClient.isConfigured() &&
+                                (NcmApiClient.isLoggedIn || NcmApiClient.isGuest)
+                            ) UI.HomePage else UI.Welcome
+                        }
                         val navSpec = spring(
                             stiffness = 400f,
                             dampingRatio = 1f,
@@ -217,7 +225,7 @@ class MainActivity : BaseActivity() {
                         )
                         // val scaffoldState = rememberBottomSheetScaffoldState()
                         val route = rememberSaveable(key = "MainActivity_route") {
-                            mutableStateOf(UI.HomePage)
+                            mutableStateOf(initialRoute)
                         }
                         // 记录当前路线
 
@@ -225,7 +233,7 @@ class MainActivity : BaseActivity() {
                             val backstackEntry =
                                 navController.currentBackStackEntryAsState()
                             route.value =
-                                backstackEntry.value?.destination?.route ?: UI.HomePage
+                                backstackEntry.value?.destination?.route ?: initialRoute
                         }
 
                         // 显示控制区域
@@ -306,7 +314,7 @@ class MainActivity : BaseActivity() {
                             mutableStateOf(defaultHome)
                         }
 
-                        val pagerState = rememberPagerState(pageCount = { 2 })
+                        val pagerState = rememberPagerState(pageCount = { 3 })
 
                         // 以下为实际显示
 
@@ -384,7 +392,7 @@ class MainActivity : BaseActivity() {
                                                 }
                                             ),
                                             navController = navController,
-                                            startDestination = UI.HomePage,
+                                            startDestination = initialRoute,
                                             enterTransition = {
                                                 fadeIn(animationSpec = fadeAnimationSpec) + expandHorizontally(
                                                     animationSpec = animationSpec,
@@ -421,6 +429,14 @@ class MainActivity : BaseActivity() {
                                                     -it / 2
                                                 }
                                             }) {
+
+                                            composable(UI.Welcome) {
+                                                WelcomeScreen {
+                                                    navController.navigate(UI.HomePage) {
+                                                        popUpTo(UI.Welcome) { inclusive = true }
+                                                    }
+                                                }
+                                            }
 
                                             composable(UI.HomePage) {
                                                 HomeNav(
@@ -460,6 +476,21 @@ class MainActivity : BaseActivity() {
                                                     this@SharedTransitionLayout,
                                                     this@composable
                                                 )
+                                            }
+
+                                            composable("${UI.ArtistInfo}/{artistId}") { backStackEntry ->
+                                                yos.music.player.ui.pages.artist.ArtistDetailScreen(
+                                                    navController,
+                                                    backStackEntry.arguments?.getString("artistId")?.toLongOrNull()
+                                                )
+                                            }
+
+                                            composable(UI.CloudDisk) {
+                                                yos.music.player.ui.pages.library.cloud.CloudDiskScreen(navController)
+                                            }
+
+                                            composable(UI.Search) {
+                                                yos.music.player.ui.pages.search.SearchScreen(navController)
                                             }
 
                                             composable(UI.Settings.Main) {
@@ -502,6 +533,7 @@ class MainActivity : BaseActivity() {
 
                                 // 底部导航栏
                                 YosWrapper {
+                                    if (route.value == UI.Welcome) return@YosWrapper
                                     val color =
                                         Color(0xFFF5F5F5) withNight /*Color(0xFF111111)*/ Color.Black
                                     Box(
@@ -587,7 +619,13 @@ class MainActivity : BaseActivity() {
                                                     context.getString(R.string.page_home_title)
                                                 val library =
                                                     context.getString(R.string.page_library_title)
-                                                if (route.value == UI.HomePage) {
+                                                val search =
+                                                    context.getString(R.string.page_search_title)
+                                                if (it == search) {
+                                                    if (route.value != UI.Search) {
+                                                        navController.navigate(UI.Search)
+                                                    }
+                                                } else if (route.value == UI.HomePage) {
                                                     scope.launch {
                                                         pagerState.animateScrollToPage(
                                                             when (it) {
@@ -621,6 +659,10 @@ class MainActivity : BaseActivity() {
                                                 NavItem(
                                                     stringResource(id = R.string.page_library_title),
                                                     R.drawable.ic_uitabbar_library
+                                                ),
+                                                NavItem(
+                                                    stringResource(id = R.string.page_search_title),
+                                                    R.drawable.ic_uitabbar_search
                                                 )
                                             ),
                                             modifier = Modifier
@@ -633,6 +675,7 @@ class MainActivity : BaseActivity() {
 
                             // 弹窗
                             YosWrapper {
+                                if (route.value == UI.Welcome) return@YosWrapper
                                 val showCornerSetDialog =
                                     remember("MainActivity_showCornerSetDialog") {
                                         mutableStateOf(!SettingsLibrary.ScreenCornerSet)
@@ -650,6 +693,7 @@ class MainActivity : BaseActivity() {
 
                         // 播放条&播放界面
                         YosWrapper {
+                            if (route.value == UI.Welcome) return@YosWrapper
                             if (height.intValue == 0) return@YosWrapper
 
                             Box(

@@ -105,7 +105,7 @@ LaunchedEffect(Unit) {
         println("重组：歌曲列表 ${music.title}")
 
         ShadowImageWithCache(
-            dataLambda = { music.thumb },
+            dataLambda = { music.coverUrl?.let { android.net.Uri.parse(it) } ?: music.thumb },
             contentDescription = null,
             modifier = Modifier.size(52.dp),
             cornerRadius = 3.5.dp,

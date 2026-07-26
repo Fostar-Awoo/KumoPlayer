@@ -98,7 +98,12 @@ data class YosMediaItem(
     val addDate: Long?,
     val duration: Long,
     val modifiedDate: Long?,
-    val cdTrackNumber: Int?
+    val cdTrackNumber: Int?,
+    // Netease extension
+    val neteaseId: Long? = null,
+    val coverUrl: String? = null,
+    val audioUrl: String? = null,
+    val artistIds: List<Long>? = null
     //val samplingRate: Int,
     //val bitrate: Int
 ) : Parcelable
@@ -205,7 +210,11 @@ object MusicLibrary {
             addDate = this.addDate,
             duration = this.duration,
             modifiedDate = this.modifiedDate,
-            cdTrackNumber = this.cdTrackNumber
+            cdTrackNumber = this.cdTrackNumber,
+            neteaseId = this.neteaseId,
+            coverUrl = this.coverUrl,
+            audioUrl = this.audioUrl,
+            artistIds = this.artistIds
             //samplingRate = this.samplingRate,
             //bitrate = this.bitrate
         )
@@ -214,8 +223,8 @@ object MusicLibrary {
     fun YosMediaItem.toMediaItem(): MediaItem {
         return MediaItem.Builder()
             .setUri(this.uri)
-            .setMediaId(this.mediaId!!)
-            .setMimeType(this.mimeType)
+            .setMediaId(this.mediaId ?: this.neteaseId?.toString() ?: "")
+            .setMimeType(this.mimeType ?: "audio/mpeg")
             .setMediaMetadata(
                 MediaMetadata.Builder()
                     .setTitle(this.title)
@@ -242,8 +251,10 @@ object MusicLibrary {
                         putLong("Duration", this@toMediaItem.duration)
                         this@toMediaItem.modifiedDate?.let { putLong("ModifiedDate", it) }
                         this@toMediaItem.cdTrackNumber?.let { putInt("CdTrackNumber", it) }
-                        //this@toMediaItem.samplingRate?.let { putInt("SamplingRate", it) }
-                        //this@toMediaItem.bitrate?.let { putInt("Bitrate", it) }
+                        this@toMediaItem.neteaseId?.let { putLong("NeteaseId", it) }
+                        this@toMediaItem.coverUrl?.let { putString("CoverUrl", it) }
+                        this@toMediaItem.audioUrl?.let { putString("AudioUrl", it) }
+                        this@toMediaItem.artistIds?.let { putLongArray("ArtistIds", it.toLongArray()) }
                     })
                     .build()
             )

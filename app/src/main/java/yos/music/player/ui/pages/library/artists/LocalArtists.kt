@@ -27,6 +27,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import yos.music.player.ui.UI
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Size
@@ -50,10 +51,9 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.size.Precision
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import yos.music.player.R
-import yos.music.player.data.libraries.MusicLibrary
+import yos.music.player.data.netease.api.NcmArtist
+import yos.music.player.data.netease.api.NcmRepository
 import yos.music.player.ui.theme.withNight
 import yos.music.player.ui.widgets.basic.SearchTextField
 import yos.music.player.ui.widgets.basic.Title
@@ -61,13 +61,22 @@ import yos.music.player.ui.widgets.basic.YosWrapper
 
 @Composable
 fun LocalArtists(navController: NavController) {
+    val artistsListState = remember { mutableStateOf<List<NcmArtist>>(emptyList()) }
+
+    YosWrapper {
+        LaunchedEffect(Unit) {
+            if (artistsListState.value.isEmpty()) {
+                artistsListState.value = NcmRepository.getFollowedArtists()
+            }
+        }
+    }
+
+    val artistsList = artistsListState.value
+
     Column(
         Modifier
             .fillMaxSize()
-        /*.statusBarsPadding()*/
     ) {
-        val artistsList = MusicLibrary.artists
-
         val searchText = remember("LocalArtists_searchText") {
             mutableStateOf("")
         }
@@ -103,17 +112,13 @@ fun LocalArtists(navController: NavController) {
 
             YosWrapper {
                 LaunchedEffect(searchText.value) {
-                    withContext(Dispatchers.IO) {
-                        val filteredList = withContext(Dispatchers.IO) {
-                            if (useSearch.value) {
-                                MusicLibrary.artists.asSequence().filter { artist ->
-                                    artist.contains(searchText.value, ignoreCase = true)
-                                }.toList()
-                            } else {
-                                artistsList
-                            }
+                    val query = searchText.value
+                    list.value = if (query.isNotEmpty()) {
+                        artistsList.filter { artist ->
+                            artist.name.contains(query, ignoreCase = true)
                         }
-                        list.value = filteredList
+                    } else {
+                        artistsList
                     }
                 }
             }
@@ -145,11 +150,10 @@ fun LocalArtists(navController: NavController) {
 
                 itemsIndexed(
                     list.value,
-                    key = { _, artist -> artist }/*,
-                    contentType = { _, _ -> "LocalArtists_item" }*/
+                    key = { _, artist -> artist.id.toString() }
                 ) { index, artist ->
-                    ArtistItem(artistName = artist) {
-
+                    ArtistItem(artistName = artist.name, artistImageUrl = artist.picUrl) {
+                        navController.navigate("${UI.ArtistInfo}/${artist.id}")
                     }
 
                     key(index) {
@@ -175,6 +179,7 @@ fun LocalArtists(navController: NavController) {
 private fun LazyItemScope.ArtistItem(
     modifier: Modifier = Modifier,
     artistName: String,
+    artistImageUrl: String?,
     onClick: () -> Unit
 ) =
     Row(
@@ -186,7 +191,6 @@ private fun LazyItemScope.ArtistItem(
             .padding(start = 18.dp, end = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val songs = MusicLibrary.Artist[artistName]
         Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp)) {
             YosWrapper {
                 val shape = CircleShape
@@ -194,7 +198,7 @@ private fun LazyItemScope.ArtistItem(
                     val density = LocalDensity.current
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
-                            .data(data = songs.getOrNull(0)?.thumb).crossfade(true)
+                            .data(data = artistImageUrl).crossfade(true)
                             .error(R.drawable.songcredits_monogram_person)
                             .placeholder(R.drawable.songcredits_monogram_person)
                             .fallback(R.drawable.songcredits_monogram_person)

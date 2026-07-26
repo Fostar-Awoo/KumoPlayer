@@ -18,6 +18,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -28,8 +29,11 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
+import yos.music.player.data.netease.api.toYosMediaItem
 import yos.music.player.R
-import yos.music.player.data.libraries.MusicLibrary
+import yos.music.player.data.netease.api.NcmAlbum
+import yos.music.player.data.netease.api.NcmRepository
 import yos.music.player.data.objects.LibraryObject
 import yos.music.player.ui.UI
 import yos.music.player.ui.toUI
@@ -47,14 +51,22 @@ fun LocalAlbums(
     sharedTransitionScope: SharedTransitionScope,
     animatedContentScope: AnimatedContentScope
 ) {
+    val albumsListState = remember { mutableStateOf<List<NcmAlbum>>(emptyList()) }
+    val scope = rememberCoroutineScope()
+
+    YosWrapper {
+        LaunchedEffect(Unit) {
+            if (albumsListState.value.isEmpty()) {
+                albumsListState.value = NcmRepository.getSubscribedAlbums()
+            }
+        }
+    }
+
     Column(
         Modifier
             .fillMaxSize()
-        /*.statusBarsPadding()*/
     ) {
-        val albumsList = remember("LocalAlbums_albumsList") {
-            MusicLibrary.albums
-        }
+        val albumsList = albumsListState.value
 
         val searchText = remember("LocalAlbums_searchText") {
             mutableStateOf("")
@@ -86,22 +98,17 @@ fun LocalAlbums(
                 }
             }
         } else {
-            val useSearch = remember { derivedStateOf { searchText.value.isNotEmpty() } }
             val list = remember { mutableStateOf(albumsList) }
 
             YosWrapper {
                 LaunchedEffect(searchText.value) {
-                    withContext(Dispatchers.IO) {
-                        val filteredList = withContext(Dispatchers.IO) {
-                            if (useSearch.value) {
-                                MusicLibrary.albums.asSequence().filter { album ->
-                                    album.contains(searchText.value, ignoreCase = true)
-                                }.toList()
-                            } else {
-                                albumsList
-                            }
+                    val query = searchText.value
+                    list.value = if (query.isNotEmpty()) {
+                        albumsList.filter { album ->
+                            album.name.contains(query, ignoreCase = true)
                         }
-                        list.value = filteredList
+                    } else {
+                        albumsList
                     }
                 }
             }
@@ -130,16 +137,18 @@ fun LocalAlbums(
                 }
                 itemsIndexed(
                     list.value,
-                    key = { _, album -> album }/*,
-                    contentType = { _, _ -> "LocalAlbums_item" }*/
+                    key = { _, album -> album.id.toString() }
                 ) { _, album ->
                     AlbumItems(
-                        albumName = album,
+                        album = album,
                         animatedContentScope = animatedContentScope,
                         sharedTransitionScope = sharedTransitionScope
                     ) {
-                        LibraryObject.setTargetAlbumName(album)
-                        navController.toUI(UI.AlbumInfo)
+                        scope.launch {
+                            val songs = NcmRepository.getAlbumSongs(album.id).map { it.toYosMediaItem() }
+                            LibraryObject.setTargetListWithTitle(album.name, songs)
+                            navController.toUI(UI.NormalMusic)
+                        }
                     }
                 }
             }
@@ -150,12 +159,11 @@ fun LocalAlbums(
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun LazyGridItemScope.AlbumItems(
-    albumName: String,
+    album: NcmAlbum,
     sharedTransitionScope: SharedTransitionScope,
     animatedContentScope: AnimatedContentScope,
     onClick: () -> Unit
 ) {
-    val songs = MusicLibrary.Album[albumName]
     Column(
         Modifier
             .animateItem(fadeInSpec = null, fadeOutSpec = null)
@@ -166,37 +174,26 @@ private fun LazyGridItemScope.AlbumItems(
                 onClick = onClick
             )
     ) {
-        /*with(sharedTransitionScope) {*/
         ShadowImage(
-            dataLambda = { songs.getOrNull(0)?.thumb },
+            dataLambda = { album.picUrl?.let { android.net.Uri.parse(it) } },
             contentDescription = "Album",
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 5.dp)
-            /*.sharedElement(
-                sharedTransitionScope.rememberSharedContentState(key = "image-$albumName"),
-                animatedVisibilityScope = animatedContentScope
-            )*/,
+                .padding(bottom = 5.dp),
             shadowAlpha = 0f,
             cornerRadius = 7.dp,
             imageQuality = ImageQuality.HIGH
         )
         Text(
-            text = albumName,
+            text = album.name,
             fontSize = 14.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier
-                .alpha(0.9f)
-            /*.sharedElement(
-                sharedTransitionScope.rememberSharedContentState(key = "album_name-$albumName"),
-                animatedVisibilityScope = animatedContentScope
-            )*/
+            modifier = Modifier.alpha(0.9f)
         )
-        /*}*/
 
         Text(
-            text = stringResource(id = R.string.page_library_album_desc, songs.size),
+            text = album.artist?.name ?: "",
             fontSize = 13.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

@@ -63,6 +63,8 @@ import yos.music.player.data.libraries.defaultAlbum
 import yos.music.player.data.libraries.defaultArtistsName
 import yos.music.player.data.libraries.defaultTitle
 import yos.music.player.data.models.ImageViewModel
+import yos.music.player.data.netease.api.NcmRepository
+import yos.music.player.data.netease.api.toYosMediaItem
 import yos.music.player.ui.UI
 import yos.music.player.ui.theme.YosRoundedCornerShape
 import yos.music.player.ui.toUI
@@ -88,25 +90,27 @@ fun Home(
 
 @Composable
 fun RecommendCard(imageViewModel: ImageViewModel) {
-    val musicList = runCatching { MusicLibrary.songs }.getOrDefault(emptyList())
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val dailyRecommend = remember { mutableStateOf<List<YosMediaItem>>(emptyList()) }
+    val recommendPlaylists = remember { mutableStateOf<List<yos.music.player.data.netease.api.NcmPlaylist>>(emptyList()) }
 
-    val showRecommend = remember(musicList/*,"MainActivity_showRecommend"*/) {
-        derivedStateOf { musicList.isNotEmpty() }
-    }
-
-    if (showRecommend.value) {
-        val randomMusicList = remember("RecommendCard_randomMusicList") {
-            imageViewModel.recommendMusicList
-        }
-
-        YosWrapper {
-            LaunchedEffect(showRecommend.value) {
-                if (randomMusicList.value.isNotEmpty()) return@LaunchedEffect
-                randomMusicList.value = musicList.shuffled().take(5)
+    YosWrapper {
+        LaunchedEffect(Unit) {
+            if (dailyRecommend.value.isEmpty()) {
+                val songs = NcmRepository.getRecommendSongs()
+                dailyRecommend.value = songs.map { it.toYosMediaItem() }
+            }
+            if (recommendPlaylists.value.isEmpty()) {
+                recommendPlaylists.value = NcmRepository.getRecommendPlaylists()
             }
         }
+    }
 
-        val pagerState = rememberPagerState(pageCount = { randomMusicList.value.size })
+    val displayList = dailyRecommend.value
+
+    if (displayList.isNotEmpty()) {
+        val pagerState = rememberPagerState(pageCount = { displayList.size })
 
         Column(
             Modifier
@@ -121,27 +125,23 @@ fun RecommendCard(imageViewModel: ImageViewModel) {
                 modifier = Modifier.padding(horizontal = 20.dp)
             )
 
-            val scope = rememberCoroutineScope()
-
-
             HorizontalPager(
                 state = pagerState,
                 pageSize = PageSize.Fixed(278.dp),
                 contentPadding = PaddingValues(start = 20.dp, end = 136.dp),
-                key = { randomMusicList.value[it] },
+                key = { displayList[it].neteaseId ?: it },
                 beyondViewportPageCount = 5
             ) { page ->
-                val music = randomMusicList.value[page]
-                RecommendCardItem(subTitle = stringResource(id = R.string.home_recommend_subtitle),
+                val music = displayList[page]
+                RecommendCardItem(
+                    subTitle = stringResource(id = R.string.home_recommend_subtitle),
                     music = music,
                     onClick = {
                         scope.launch(Dispatchers.IO) {
-                            MediaController.prepare(
-                                music,
-                                randomMusicList.value
-                            )
+                            MediaController.prepare(music, displayList)
                         }
-                    })
+                    }
+                )
             }
         }
     }
@@ -218,7 +218,7 @@ fun RecommendCardItem(subTitle: String, music: YosMediaItem, onClick: () -> Unit
                     }
                     .clickable(onClick = onClick)) {
                 AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current).data(data = music.thumb)
+                    model = ImageRequest.Builder(LocalContext.current).data(data = music.coverUrl ?: music.thumb)
                         .crossfade(true).error(R.drawable.placeholder_music_default_artwork)
                         .placeholder(R.drawable.placeholder_music_default_artwork)
                         .fallback(R.drawable.placeholder_music_default_artwork).build(),

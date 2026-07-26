@@ -10,12 +10,10 @@ import androidx.navigation.NavController
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.outlined.PersonCropCircle
 import yos.music.player.R
-import yos.music.player.data.libraries.MusicLibrary.songs
 import yos.music.player.data.objects.LibraryObject
 import yos.music.player.ui.UI
 import yos.music.player.ui.toUI
 import yos.music.player.ui.widgets.basic.Title
-import yos.music.player.ui.widgets.basic.YosWrapper
 
 @Composable
 fun Library(navController: NavController) =
@@ -63,21 +61,14 @@ fun Library(navController: NavController) =
                         navController.toUI(UI.LocalAlbums)
                     }
                     LibraryDivider()
-
-                    YosWrapper {
-                        val targetTitle = stringResource(
-                            id = R.string.page_library_songs
+                    SmallLabelItem(
+                        icon = painterResource(id = R.drawable.ic_library_link_icon_songs),
+                        label = stringResource(
+                            id = R.string.page_library_cloud_disk
                         )
-                        val targetList = songs
-                        SmallLabelItem(
-                            icon = painterResource(id = R.drawable.ic_library_link_icon_songs),
-                            label = targetTitle
-                        ) {
-                            LibraryObject.setTargetListWithTitle(targetTitle, targetList)
-                            navController.toUI(UI.NormalMusic)
-                        }
+                    ) {
+                        navController.toUI(UI.CloudDisk)
                     }
-
                     LibraryDivider()
                 }
             }

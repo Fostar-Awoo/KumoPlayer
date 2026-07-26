@@ -16,8 +16,10 @@ import androidx.navigation.NavController
 @Stable
 interface UI {
     companion object {
+        const val Welcome = "Welcome"
         const val HomePage = "HomePage"
         const val Library = "Library"
+        const val Search = "Search"
 
         const val NormalMusic = "NormalMusic"
         const val PlayLists = "PlayLists"
@@ -25,6 +27,8 @@ interface UI {
         const val LocalAlbums = "LocalAlbums"
 
         const val AlbumInfo = "AlbumInfo"
+        const val ArtistInfo = "ArtistInfo"
+        const val CloudDisk = "CloudDisk"
     }
 
     @Stable

@@ -1,6 +1,5 @@
 package yos.music.player.ui.pages.library.playlists
 
-import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -17,8 +16,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,29 +41,41 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.util.fastMapNotNull
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import yos.music.player.R
 import yos.music.player.data.libraries.FavPlayListLibrary
-import yos.music.player.data.libraries.MusicLibrary.songs
-import yos.music.player.data.libraries.PlayList
-import yos.music.player.data.libraries.PlayListLibrary.playList
-import yos.music.player.data.libraries.YosMediaItem
+import yos.music.player.data.netease.api.NcmPlaylist
+import yos.music.player.data.netease.api.NcmRepository
+import yos.music.player.data.netease.api.toYosMediaItem
 import yos.music.player.data.objects.LibraryObject
 import yos.music.player.ui.UI
 import yos.music.player.ui.theme.YosRoundedCornerShape
 import yos.music.player.ui.theme.withNight
 import yos.music.player.ui.toUI
 import yos.music.player.ui.widgets.basic.Title
+import yos.music.player.ui.widgets.basic.YosWrapper
 
 @Composable
 fun PlayLists(navController: NavController) {
-    val playLists = playList.sortedBy { it.name }
+    val playListsState = remember { mutableStateOf<List<NcmPlaylist>>(emptyList()) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    YosWrapper {
+        LaunchedEffect(Unit) {
+            if (playListsState.value.isEmpty()) {
+                val uid = yos.music.player.data.netease.api.NcmApiClient.userId
+                playListsState.value = NcmRepository.getUserPlaylists(uid)
+            }
+        }
+    }
+
+    val playLists = playListsState.value
+
     Title(title = stringResource(id = R.string.page_library_playlists),
         onBack = {
             navController.popBackStack()
@@ -107,12 +121,13 @@ fun PlayLists(navController: NavController) {
 
             itemsIndexed(
                 playLists,
-                key = { _, playList -> playList.listID }
+                key = { _, playList -> playList.id.toString() }
             ) { index, playList ->
-                PlayListItem(playList = playList) {
+                NcmPlaylistItem(playlist = playList) {
                     scope.launch(Dispatchers.IO) {
                         val targetTitle = playList.name
-                        val targetList = convertToSongList(playList.songDataList, songs)
+                        val targetList = NcmRepository.getPlaylistTracks(playList.id)
+                            .map { it.toYosMediaItem() }
                         LibraryObject.setTargetListWithTitle(targetTitle, targetList)
                         withContext(Dispatchers.Main) {
                             navController.toUI(UI.NormalMusic)
@@ -137,39 +152,27 @@ fun PlayLists(navController: NavController) {
     )
 }
 
-private fun convertToSongList(
-    songDataList: List<Uri>,
-    songs: List<YosMediaItem>
-): List<YosMediaItem> {
-    return songDataList.fastMapNotNull { uri ->
-        songs.find { it.uri == uri }
-    }
-}
-
 @Stable
 private enum class PlayListType {
     Add, Favorite
 }
 
 @Composable
-private fun LazyItemScope.PlayListItem(playList: PlayList, itemClick: () -> Unit) {
+private fun LazyItemScope.NcmPlaylistItem(playlist: NcmPlaylist, itemClick: () -> Unit) {
     Row(
         modifier = Modifier
             .animateItem(fadeInSpec = null, fadeOutSpec = null)
             .height(80.dp)
             .fillMaxWidth()
-            .clickable {
-                itemClick()
-            }
+            .clickable { itemClick() }
             .padding(start = 22.dp, end = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        println("重组：播放列表 ${playList.name}")
-
         val shape = YosRoundedCornerShape(4.dp)
         val density = LocalDensity.current
 
-        Image(painter = painterResource(id = R.drawable.placeholder_playlist_default),
+        AsyncImage(
+            model = playlist.coverImgUrl,
             contentDescription = null,
             modifier = Modifier
                 .size(64.dp)
@@ -198,7 +201,8 @@ private fun LazyItemScope.PlayListItem(playList: PlayList, itemClick: () -> Unit
                             blendMode = BlendMode.Overlay
                         )
                     }
-                })
+                }
+        )
 
         Column(
             Modifier
@@ -206,7 +210,7 @@ private fun LazyItemScope.PlayListItem(playList: PlayList, itemClick: () -> Unit
                 .weight(1f)
         ) {
             Text(
-                text = playList.name,
+                text = playlist.name,
                 modifier = Modifier.padding(bottom = 1.dp),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

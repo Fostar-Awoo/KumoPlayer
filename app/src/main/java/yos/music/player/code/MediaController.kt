@@ -64,6 +64,8 @@ import yos.music.player.data.libraries.PlayStatus
 import yos.music.player.data.libraries.SettingsLibrary
 import yos.music.player.data.libraries.YosMediaItem
 import yos.music.player.data.libraries.uri
+import yos.music.player.data.netease.api.NcmRepository
+import yos.music.player.data.netease.api.toYosMediaItem
 import yos.music.player.data.objects.MainViewModelObject
 import yos.music.player.data.objects.MediaViewModelObject
 
@@ -200,12 +202,24 @@ object MediaController {
         play: Boolean = true
     ) {
         println("prepare $music")
+        val unresolvedIds = thisMusicList.mapNotNull { item ->
+            item.neteaseId?.takeIf { item.audioUrl.isNullOrEmpty() }
+        }
+        val urls = NcmRepository.getSongUrls(unresolvedIds)
+        val resolvedList = thisMusicList.map { item ->
+            val url = item.neteaseId?.let(urls::get)
+            if (url != null) item.copy(audioUrl = url, uri = android.net.Uri.parse(url)) else item
+        }
+        val resolvedMusic = resolvedList.firstOrNull { it.neteaseId == music.neteaseId }
+            ?: resolvedList.firstOrNull { it.uri == music.uri }
+            ?: music
+
         if (thisMusicList != playingMusicList.value) {
 
             var index = 0
 
-            val itemList = thisMusicList.mapIndexed { thisIndex, it ->
-                if (it.uri == music.uri) {
+            val itemList = resolvedList.mapIndexed { thisIndex, it ->
+                if (sameTrack(it, resolvedMusic)) {
                     index = thisIndex
                 }
 
@@ -220,7 +234,7 @@ object MediaController {
 
             println("prepare 调用切列表")
             if (!play && playingMusicList.value == null) {
-                playingMusicList.value = thisMusicList
+                playingMusicList.value = resolvedList
                 //refresh(music)
                 withContext(Dispatchers.Main) {
                     mediaControl?.shuffleModeEnabled = shuffleModeEnabled
@@ -228,7 +242,7 @@ object MediaController {
                     mediaControl?.let { YosPlaybackService().setCustomButtons(it) }
                 }
             } else {
-                playingMusicList.value = thisMusicList
+                playingMusicList.value = resolvedList
             }
 
             if (play) {
@@ -251,11 +265,19 @@ object MediaController {
 
         } else {
             println("prepare 调用非切列表")
-            val index = thisMusicList.indexOf(music)
+            val index = resolvedList.indexOfFirst { sameTrack(it, resolvedMusic) }.coerceAtLeast(0)
             withContext(Dispatchers.Main) {
                 mediaControl?.seekToDefaultPosition(index)
                 mediaControl?.fadePlay()
             }
+        }
+    }
+
+    private fun sameTrack(first: YosMediaItem, second: YosMediaItem): Boolean {
+        return if (first.neteaseId != null || second.neteaseId != null) {
+            first.neteaseId != null && first.neteaseId == second.neteaseId
+        } else {
+            first.uri != null && first.uri == second.uri
         }
     }
 

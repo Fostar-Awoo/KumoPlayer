@@ -95,6 +95,18 @@ val MediaItem.bitrate: Int
     get() = this.mediaMetadata.extras?.getInt("Bitrate")?:0
 */
 
+val MediaItem.neteaseId: Long?
+    get() = this.mediaMetadata.extras?.getLong("NeteaseId")?.takeIf { it != 0L }
+
+val MediaItem.coverUrl: String?
+    get() = this.mediaMetadata.extras?.getString("CoverUrl")
+
+val MediaItem.audioUrl: String?
+    get() = this.mediaMetadata.extras?.getString("AudioUrl")
+
+val MediaItem.artistIds: List<Long>?
+    get() = this.mediaMetadata.extras?.getLongArray("ArtistIds")?.toList()
+
 fun String.toMultipleArtists(): List<String> {
     val delimiters = listOf("、", "/", "&", ";", "；", ",")
     var mostFrequentDelimiter: String? = null
