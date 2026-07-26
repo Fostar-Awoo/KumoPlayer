@@ -3,10 +3,10 @@ name: Build APK
 on:
   push:
     branches:
-      - main  # 如果您的主分支叫 master，请修改为 master
+      - master  # 如果您的主分支叫 master，请修改为 master
   pull_request:
     branches:
-      - main
+      - master
 
 jobs:
   build:
