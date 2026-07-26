@@ -402,7 +402,10 @@ fun NowPlaying(
                                                     ),
                                                     visible = isVisible
                                                 ),
-                                                albumUrl = { thisMusicPlaying.value?.thumb },
+                                                albumUrl = {
+                                                    thisMusicPlaying.value?.coverUrl?.let(Uri::parse)
+                                                        ?: thisMusicPlaying.value?.thumb
+                                                },
                                                 isPlaying = isPlayingStatusLambda
                                             )
                                             AnimatedContent(
@@ -435,7 +438,16 @@ fun NowPlaying(
                                                             text = it?.artistsName
                                                                 ?: defaultArtistsName,
                                                             fontSize = 18.5.sp,
-                                                            modifier = Modifier.overlayEffect(),
+                                                            modifier = Modifier
+                                                                .overlayEffect()
+                                                                .clickable(
+                                                                    enabled = it?.artistIds?.isNotEmpty() == true,
+                                                                    onClick = {
+                                                                        it?.artistIds?.firstOrNull()?.let { artistId ->
+                                                                            navController.navigate("${UI.ArtistInfo}/$artistId")
+                                                                        }
+                                                                    }
+                                                                ),
                                                             maxLines = 1,
                                                             overflow = TextOverflow.Ellipsis,
                                                             color = Color.White.copy(alpha = 0.35f)
@@ -466,7 +478,8 @@ fun NowPlaying(
                                                 visible = isVisible
                                             ),
                                             albumUrlLambda = {
-                                                thisMusicPlaying.value?.thumb
+                                                thisMusicPlaying.value?.coverUrl?.let(Uri::parse)
+                                                    ?: thisMusicPlaying.value?.thumb
                                             },
                                             musicPlayingLambda = { thisMusicPlaying.value }) {
                                             nowPageOnChanged(Album)

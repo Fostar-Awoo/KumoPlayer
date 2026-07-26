@@ -63,6 +63,7 @@ import yos.music.player.data.libraries.PlayListV1
 import yos.music.player.data.libraries.PlayStatus
 import yos.music.player.data.libraries.SettingsLibrary
 import yos.music.player.data.libraries.YosMediaItem
+import yos.music.player.data.libraries.neteaseId
 import yos.music.player.data.libraries.uri
 import yos.music.player.data.netease.api.NcmRepository
 import yos.music.player.data.netease.api.toYosMediaItem
@@ -202,17 +203,32 @@ object MediaController {
         play: Boolean = true
     ) {
         println("prepare $music")
-        val unresolvedIds = thisMusicList.mapNotNull { item ->
-            item.neteaseId?.takeIf { item.audioUrl.isNullOrEmpty() }
-        }
-        val urls = NcmRepository.getSongUrls(unresolvedIds)
+        // 网易云播放地址是有时效的。每次建立播放队列都重新获取，不能复用持久化的旧地址。
+        // 分批请求避免大歌单生成过长 URL，且某一批失败不会影响其他歌曲。
+        val urls = thisMusicList.mapNotNull(YosMediaItem::neteaseId)
+            .distinct()
+            .chunked(50)
+            .fold(mutableMapOf<Long, String>()) { result, ids ->
+                runCatching { NcmRepository.getSongUrls(ids) }
+                    .onSuccess(result::putAll)
+                    .onFailure { it.printStackTrace() }
+                result
+            }
         val resolvedList = thisMusicList.map { item ->
             val url = item.neteaseId?.let(urls::get)
-            if (url != null) item.copy(audioUrl = url, uri = android.net.Uri.parse(url)) else item
-        }
+            when {
+                url != null -> item.copy(audioUrl = url, uri = android.net.Uri.parse(url))
+                item.neteaseId != null -> item.copy(audioUrl = null, uri = null)
+                else -> item
+            }
+        }.filter { it.uri != null }
         val resolvedMusic = resolvedList.firstOrNull { it.neteaseId == music.neteaseId }
-            ?: resolvedList.firstOrNull { it.uri == music.uri }
-            ?: music
+            ?: resolvedList.firstOrNull { music.neteaseId == null && it.uri == music.uri }
+
+        if (resolvedMusic == null) {
+            // 不把没有数据源的 MediaItem 交给 ExoPlayer，否则只会停在 buffering/error。
+            throw IllegalStateException("无法获取歌曲 ${music.neteaseId ?: music.title} 的播放地址")
+        }
 
         if (thisMusicList != playingMusicList.value) {
 
@@ -319,6 +335,7 @@ class YosPlaybackService : MediaSessionService() {
 
     private val shuffleMode = "shuffle_mode"
     private val repeatMode = "repeat_mode"
+    private var lyricJob: Job? = null
 
     companion object {
         private const val FLAG_ALWAYS_SHOW_TICKER = 0x1000000
@@ -522,7 +539,9 @@ class YosPlaybackService : MediaSessionService() {
 
                         val thisPath = path?.path
 
-                        val finalLrcContent = if (lrcContent == null) {
+                        val finalLrcContent = if (player.currentMediaItem?.neteaseId != null) {
+                            null
+                        } else if (lrcContent == null) {
                             val lrcPath = "${thisPath?.substringBeforeLast(".")}.lrc"
                             println("获取歌词元数据失败，将读取：$lrcPath")
                             AudioMetadataUtils.loadLrcFile(this@YosPlaybackService, lrcPath) ?: ""
@@ -530,8 +549,10 @@ class YosPlaybackService : MediaSessionService() {
                             lrcContent
                         }
 
-                        val lrcFactory = YosLrcFactory()
-                        lrcEntries.value = lrcFactory.formatLrcEntries(finalLrcContent)
+                        // 在线歌曲的歌词由 onMediaItemTransition 获取，不能被本地旁加载逻辑覆盖。
+                        finalLrcContent?.let {
+                            lrcEntries.value = YosLrcFactory().formatLrcEntries(it)
+                        }
 
                         if (thisPath != null) {
                             // MediaViewModelObject.isDolby.value = thisPath.endsWith(".m4a")
@@ -561,6 +582,28 @@ class YosPlaybackService : MediaSessionService() {
                         yos.music.player.code.MediaController.onCase(
                             it.toYosMediaItem()
                         )
+                    }
+
+                    lyricJob?.cancel()
+                    MediaViewModelObject.lrcEntries.value = emptyList()
+                    val songId = mediaItem?.neteaseId
+                    if (songId != null) {
+                        lyricJob = CoroutineScope(Dispatchers.IO).launch {
+                            val lyric = runCatching { NcmRepository.getLyric(songId) }.getOrNull()
+                            // 将同时间轴的翻译歌词交给现有解析器合并为同一行。
+                            val content = listOfNotNull(
+                                lyric?.lrc?.lyric?.takeIf(String::isNotBlank),
+                                lyric?.tlyric?.lyric?.takeIf(String::isNotBlank)
+                            ).joinToString("\n")
+                            val entries = YosLrcFactory().formatLrcEntries(content)
+                            withContext(Dispatchers.Main) {
+                                // 网络返回较慢时，避免上一首歌词覆盖当前歌曲。
+                                if (player.currentMediaItem?.neteaseId == songId) {
+                                    MediaViewModelObject.lrcEntries.value = entries
+                                    MainViewModelObject.syncLyricIndex.intValue = -1
+                                }
+                            }
+                        }
                     }
 
                     println("更新 $mediaItem")
