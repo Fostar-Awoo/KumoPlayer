@@ -92,13 +92,18 @@ fun NcmAccountScreen(
                         }
                         802 -> message = "已扫码，请在网易云音乐中确认"
                         803 -> {
-                            status.cookie?.let { NcmApiClient.cookie = it }
-                            NcmApiClient.nickname = status.nickname
-                            NcmApiClient.avatarUrl = status.avatarUrl
-                            NcmApiClient.isLoggedIn = true
-                            NcmApiClient.isGuest = false
-                            NcmRepository.checkLoginStatus()
-                            onFinished()
+                            val persisted = NcmApiClient.persistLogin(
+                                loginCookie = status.cookie,
+                                loginNickname = status.nickname,
+                                loginAvatarUrl = status.avatarUrl
+                            )
+                            if (persisted) {
+                                NcmRepository.checkLoginStatus()
+                                onFinished()
+                            } else {
+                                message = "登录成功，但 API 未返回 Cookie，请重新获取二维码"
+                                session = null
+                            }
                         }
                     }
                 },

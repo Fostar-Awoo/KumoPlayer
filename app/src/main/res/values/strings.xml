@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name" translatable="false">Flamingo</string>
+    <string name="app_name" translatable="false">KumoPlayer</string>
     <string name="permission_grant_title">Media Read Permission</string>
     <string name="permission_grant_subtitle">Permission Request</string>
     <string name="permission_grant_button_positive">OK</string>
@@ -11,7 +11,7 @@
     <string name="page_library_title">Library</string>
     <string name="page_search_title">Search</string>
     <string name="home_recommend_title">Try These</string>
-    <string name="home_recommend_subtitle">From Your Library</string>
+    <string name="home_recommend_subtitle">From your daily recommendations</string>
     <string name="playlist_unavailable_title">Unable to Display Playlist</string>
     <string name="tip_scanning">Pulling songs from the library…</string>
     <string name="tip_no_song">No items to play.</string>

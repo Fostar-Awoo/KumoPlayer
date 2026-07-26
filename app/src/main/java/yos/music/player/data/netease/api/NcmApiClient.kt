@@ -6,7 +6,6 @@ import okhttp3.CookieJar
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
-import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -17,43 +16,48 @@ object NcmApiClient {
     private const val KEY_COOKIE = "ncm_cookie"
     private val mmkv = MMKV.defaultMMKV()
 
-    class NcmCookieJar : CookieJar {
-        private var storedCookies: MutableList<Cookie> = mutableListOf()
-
+    private class PersistentNcmCookieJar : CookieJar {
+        @Synchronized
         override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
-            storedCookies = cookies.toMutableList()
-            mmkv.encode(KEY_COOKIE, cookies.joinToString("; ") { "${it.name}=${it.value}" })
+            if (cookies.isEmpty()) return
+
+            val stored = NcmCookieCodec.parse(mmkv.decodeString(KEY_COOKIE, "").orEmpty())
+            val now = System.currentTimeMillis()
+            cookies.forEach { cookie ->
+                if (cookie.expiresAt <= now || cookie.value.isEmpty()) {
+                    stored.remove(cookie.name)
+                } else {
+                    stored[cookie.name] = cookie.value
+                }
+            }
+            persist(NcmCookieCodec.serialize(stored))
         }
 
         override fun loadForRequest(url: HttpUrl): List<Cookie> {
-            return storedCookies
+            // The configured API is commonly a proxy on a custom domain. A Cookie object tied
+            // to music.163.com would therefore be rejected, so the interceptor below attaches
+            // the persisted Cookie header explicitly for every API request.
+            return emptyList()
         }
-    }
 
-    private val cookieJar = NcmCookieJar()
+        @Synchronized
+        fun replace(header: String) {
+            persist(NcmCookieCodec.normalize(header))
+        }
 
-    init {
-        val cookieStr = mmkv.decodeString(KEY_COOKIE, "")
-        if (!cookieStr.isNullOrEmpty()) {
-            val parsed = mutableListOf<Cookie>()
-            cookieStr.split(";").forEach { part ->
-                val trimmed = part.trim()
-                if (trimmed.isNotEmpty()) {
-                    val kv = trimmed.split("=", limit = 2)
-                    if (kv.size == 2 && kv[0].isNotEmpty()) {
-                        parsed.add(
-                            Cookie.Builder()
-                                .name(kv[0])
-                                .value(kv[1])
-                                .domain("music.163.com")
-                                .build()
-                        )
-                    }
-                }
+        @Synchronized
+        fun header(): String = mmkv.decodeString(KEY_COOKIE, "").orEmpty()
+
+        private fun persist(header: String) {
+            if (header.isEmpty()) {
+                mmkv.removeValueForKey(KEY_COOKIE)
+            } else {
+                mmkv.encode(KEY_COOKIE, header)
             }
-            cookieJar.saveFromResponse("https://music.163.com".toHttpUrl(), parsed)
         }
     }
+
+    private val cookieJar = PersistentNcmCookieJar()
 
     var baseUrl: String
         get() = mmkv.decodeString(KEY_BASE_URL, "") ?: ""
@@ -69,26 +73,9 @@ object NcmApiClient {
     }
 
     var cookie: String
-        get() = mmkv.decodeString(KEY_COOKIE, "") ?: ""
+        get() = cookieJar.header()
         set(value) {
-            mmkv.encode(KEY_COOKIE, value)
-            val parsed = mutableListOf<Cookie>()
-            value.split(";").forEach { part ->
-                val trimmed = part.trim()
-                if (trimmed.isNotEmpty()) {
-                    val kv = trimmed.split("=", limit = 2)
-                    if (kv.size == 2) {
-                        parsed.add(
-                            Cookie.Builder()
-                                .name(kv[0])
-                                .value(kv[1])
-                                .domain("music.163.com")
-                                .build()
-                        )
-                    }
-                }
-            }
-            cookieJar.saveFromResponse("https://music.163.com".toHttpUrl(), parsed)
+            cookieJar.replace(value)
         }
 
     var userId: Long
@@ -129,12 +116,16 @@ object NcmApiClient {
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .addInterceptor { chain ->
-                chain.proceed(
-                    chain.request().newBuilder()
-                        .header("User-Agent", "Mozilla/5.0 (Android) KumoPlayer/1.0")
-                        .header("Referer", "https://music.163.com/")
-                        .build()
-                )
+                val request = chain.request().newBuilder()
+                    .header("User-Agent", "Mozilla/5.0 (Android) KumoPlayer/1.0")
+                    .header("Referer", "https://music.163.com/")
+                    .apply {
+                        cookieJar.header().takeIf { it.isNotBlank() }?.let {
+                            header("Cookie", it)
+                        }
+                    }
+                    .build()
+                chain.proceed(request)
             }
             .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC })
             .build()
@@ -156,6 +147,25 @@ object NcmApiClient {
 
     inline fun <reified T> service(): T? {
         return createService(T::class.java)
+    }
+
+    fun persistLogin(
+        loginCookie: String?,
+        loginNickname: String?,
+        loginAvatarUrl: String?
+    ): Boolean {
+        val effectiveCookie = loginCookie
+            ?.takeIf { it.isNotBlank() }
+            ?.let { NcmCookieCodec.merge(cookie, it) }
+            ?: cookie
+        if (effectiveCookie.isBlank()) return false
+
+        cookie = effectiveCookie
+        nickname = loginNickname
+        avatarUrl = loginAvatarUrl
+        isGuest = false
+        isLoggedIn = true
+        return true
     }
 
     fun clearLogin() {
