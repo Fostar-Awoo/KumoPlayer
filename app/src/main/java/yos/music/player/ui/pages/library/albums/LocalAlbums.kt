@@ -5,20 +5,27 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridItemScope
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -27,13 +34,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
-import yos.music.player.data.netease.api.toYosMediaItem
 import yos.music.player.R
 import yos.music.player.data.netease.api.NcmAlbum
 import yos.music.player.data.netease.api.NcmRepository
+import yos.music.player.data.netease.api.toYosMediaItem
 import yos.music.player.data.objects.LibraryObject
 import yos.music.player.ui.UI
 import yos.music.player.ui.toUI
@@ -42,7 +47,8 @@ import yos.music.player.ui.widgets.basic.SearchTextField
 import yos.music.player.ui.widgets.basic.ShadowImage
 import yos.music.player.ui.widgets.basic.Title
 import yos.music.player.ui.widgets.basic.TitleWithLazyVerticalGrid
-import yos.music.player.ui.widgets.basic.YosWrapper
+
+private enum class AlbumsLoadState { Loading, Success, Error }
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -51,65 +57,75 @@ fun LocalAlbums(
     sharedTransitionScope: SharedTransitionScope,
     animatedContentScope: AnimatedContentScope
 ) {
-    val albumsListState = remember { mutableStateOf<List<NcmAlbum>>(emptyList()) }
+    var albumsList by remember { mutableStateOf<List<NcmAlbum>>(emptyList()) }
+    var loadState by remember { mutableStateOf(AlbumsLoadState.Loading) }
+    var reloadKey by remember { mutableStateOf(0) }
     val scope = rememberCoroutineScope()
 
-    YosWrapper {
-        LaunchedEffect(Unit) {
-            if (albumsListState.value.isEmpty()) {
-                albumsListState.value = NcmRepository.getSubscribedAlbums()
-            }
-        }
+    LaunchedEffect(reloadKey) {
+        loadState = AlbumsLoadState.Loading
+        NcmRepository.getSubscribedAlbumsResult().fold(
+            onSuccess = {
+                albumsList = it
+                loadState = AlbumsLoadState.Success
+            },
+            onFailure = { loadState = AlbumsLoadState.Error }
+        )
     }
 
     Column(
         Modifier
             .fillMaxSize()
     ) {
-        val albumsList = albumsListState.value
-
         val searchText = remember("LocalAlbums_searchText") {
             mutableStateOf("")
         }
 
-        val hideMusic = remember("LocalAlbums_showMusic") {
-            derivedStateOf {
-                albumsList.isEmpty()
-            }
-        }
-        if (hideMusic.value) {
-            val message =
-                stringResource(
-                    id = R.string.tip_no_song
-                )
+        if (loadState != AlbumsLoadState.Success || albumsList.isEmpty()) {
             Title(
                 title = stringResource(id = R.string.page_library_albums), onBack = {
                     navController.popBackStack()
                 }
             ) {
-                item("tip_no_song") {
-                    Column(
-                        Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 20.dp),
+                item("album_status") {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().height(180.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(text = message, fontSize = 18.sp, modifier = Modifier.alpha(0.6f))
+                        when (loadState) {
+                            AlbumsLoadState.Loading -> CircularProgressIndicator(
+                                modifier = Modifier.size(30.dp),
+                                strokeWidth = 3.dp
+                            )
+                            AlbumsLoadState.Error -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = stringResource(id = R.string.page_library_load_failed),
+                                    modifier = Modifier.padding(horizontal = 20.dp).alpha(0.6f),
+                                    fontSize = 16.sp
+                                )
+                                Text(
+                                    text = stringResource(id = R.string.page_library_retry),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.clickable { reloadKey++ }.padding(16.dp)
+                                )
+                            }
+                            AlbumsLoadState.Success -> Text(
+                                text = stringResource(id = R.string.page_library_no_subscribed_albums),
+                                fontSize = 18.sp,
+                                modifier = Modifier.alpha(0.6f)
+                            )
+                        }
                     }
                 }
             }
         } else {
-            val list = remember { mutableStateOf(albumsList) }
-
-            YosWrapper {
-                LaunchedEffect(searchText.value) {
-                    val query = searchText.value
-                    list.value = if (query.isNotEmpty()) {
-                        albumsList.filter { album ->
-                            album.name.contains(query, ignoreCase = true)
-                        }
-                    } else {
-                        albumsList
-                    }
+            val query = searchText.value.trim()
+            val filteredAlbums = if (query.isEmpty()) {
+                albumsList
+            } else {
+                albumsList.filter { album ->
+                    album.name.contains(query, ignoreCase = true) ||
+                        album.artist?.name?.contains(query, ignoreCase = true) == true
                 }
             }
 
@@ -136,7 +152,7 @@ fun LocalAlbums(
                         })
                 }
                 itemsIndexed(
-                    list.value,
+                    filteredAlbums,
                     key = { _, album -> album.id.toString() }
                 ) { _, album ->
                     AlbumItems(

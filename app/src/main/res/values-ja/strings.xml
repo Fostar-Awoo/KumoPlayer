@@ -6,6 +6,10 @@
     <string name="permission_grant_button_negative">無視</string>
     <string name="page_home_title">ホーム</string>
     <string name="page_library_songs">曲</string>
+    <string name="page_library_load_failed">アカウントデータを取得できません。ログイン状態と API 設定を確認してください。</string>
+    <string name="page_library_retry">再試行</string>
+    <string name="page_library_no_subscribed_albums">お気に入りのアルバムはありません。</string>
+    <string name="page_library_no_followed_artists">フォロー中のアーティストはいません。</string>
     <string name="page_settings_title">設定</string>
     <string name="page_library_title">ライブラリ</string>
     <string name="home_recommend_title">これらを試してみてください</string>

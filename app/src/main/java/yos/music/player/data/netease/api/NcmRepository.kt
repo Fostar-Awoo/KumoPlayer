@@ -45,13 +45,27 @@ object NcmRepository {
     }
 
     suspend fun getFollowedArtists(): List<NcmArtist> {
-        val res = safeCall { artistSublist() }
-        return res.getOrNull()?.data ?: emptyList()
+        return getFollowedArtistsResult().getOrDefault(emptyList())
     }
 
     suspend fun getSubscribedAlbums(): List<NcmAlbum> {
-        val res = safeCall { albumSublist() }
-        return res.getOrNull()?.data ?: emptyList()
+        return getSubscribedAlbumsResult().getOrDefault(emptyList())
+    }
+
+    suspend fun getFollowedArtistsResult(): Result<List<NcmArtist>> {
+        return safeCall { artistSublist() }.mapCatching { response ->
+            requireNotNull(response) { "关注艺人响应为空" }
+            check(response.code == 200) { "关注艺人请求失败（${response.code}）" }
+            response.data.orEmpty()
+        }
+    }
+
+    suspend fun getSubscribedAlbumsResult(): Result<List<NcmAlbum>> {
+        return safeCall { albumSublist() }.mapCatching { response ->
+            requireNotNull(response) { "收藏专辑响应为空" }
+            check(response.code == 200) { "收藏专辑请求失败（${response.code}）" }
+            response.data.orEmpty()
+        }
     }
 
     suspend fun getCloudSongs(): List<NcmSong> {

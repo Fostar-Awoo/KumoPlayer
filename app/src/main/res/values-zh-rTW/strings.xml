@@ -6,6 +6,10 @@
     <string name="permission_grant_button_negative">忽略</string>
     <string name="page_home_title">首頁</string>
     <string name="page_library_songs">歌曲</string>
+    <string name="page_library_load_failed">無法讀取帳號資料，請檢查登入狀態和 API 設定。</string>
+    <string name="page_library_retry">重試</string>
+    <string name="page_library_no_subscribed_albums">暫無收藏的專輯。</string>
+    <string name="page_library_no_followed_artists">暫無關注的藝人。</string>
     <string name="page_settings_title">設定</string>
     <string name="page_library_title">資料庫</string>
     <string name="home_recommend_title">試試這些</string>

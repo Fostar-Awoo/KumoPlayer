@@ -84,6 +84,10 @@
     <string name="page_library_playlists">Playlists</string>
     <string name="page_library_search_songs">Search in Songs</string>
     <string name="page_library_search_artists">Search in Artists</string>
+    <string name="page_library_load_failed">Unable to load account data. Check your login and API settings.</string>
+    <string name="page_library_retry">Retry</string>
+    <string name="page_library_no_subscribed_albums">No favorite albums yet.</string>
+    <string name="page_library_no_followed_artists">No followed artists yet.</string>
     <string name="playlist_unavailable_desc">No items to play.</string>
     <string name="normal_button_sort_by_name">Name</string>
     <string name="normal_button_sort_by_artist">Artist</string>

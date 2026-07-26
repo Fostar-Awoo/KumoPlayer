@@ -16,18 +16,19 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import yos.music.player.ui.UI
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Size
@@ -54,24 +55,30 @@ import coil.size.Precision
 import yos.music.player.R
 import yos.music.player.data.netease.api.NcmArtist
 import yos.music.player.data.netease.api.NcmRepository
+import yos.music.player.ui.UI
 import yos.music.player.ui.theme.withNight
 import yos.music.player.ui.widgets.basic.SearchTextField
 import yos.music.player.ui.widgets.basic.Title
 import yos.music.player.ui.widgets.basic.YosWrapper
 
+private enum class ArtistsLoadState { Loading, Success, Error }
+
 @Composable
 fun LocalArtists(navController: NavController) {
-    val artistsListState = remember { mutableStateOf<List<NcmArtist>>(emptyList()) }
+    var artistsList by remember { mutableStateOf<List<NcmArtist>>(emptyList()) }
+    var loadState by remember { mutableStateOf(ArtistsLoadState.Loading) }
+    var reloadKey by remember { mutableStateOf(0) }
 
-    YosWrapper {
-        LaunchedEffect(Unit) {
-            if (artistsListState.value.isEmpty()) {
-                artistsListState.value = NcmRepository.getFollowedArtists()
-            }
-        }
+    LaunchedEffect(reloadKey) {
+        loadState = ArtistsLoadState.Loading
+        NcmRepository.getFollowedArtistsResult().fold(
+            onSuccess = {
+                artistsList = it
+                loadState = ArtistsLoadState.Success
+            },
+            onFailure = { loadState = ArtistsLoadState.Error }
+        )
     }
-
-    val artistsList = artistsListState.value
 
     Column(
         Modifier
@@ -81,45 +88,50 @@ fun LocalArtists(navController: NavController) {
             mutableStateOf("")
         }
 
-        val hideMusic = remember("LocalArtists_showMusic") {
-            derivedStateOf {
-                artistsList.isEmpty()
-            }
-        }
-        if (hideMusic.value) {
-            val message =
-                stringResource(
-                    id = R.string.tip_no_song
-                )
+        if (loadState != ArtistsLoadState.Success || artistsList.isEmpty()) {
             Title(
                 title = stringResource(id = R.string.page_library_artists), onBack = {
                     navController.popBackStack()
                 }
             ) {
-                item("tip_no_song") {
-                    Column(
-                        Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 20.dp),
+                item("artist_status") {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().height(180.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(text = message, fontSize = 18.sp, modifier = Modifier.alpha(0.6f))
+                        when (loadState) {
+                            ArtistsLoadState.Loading -> CircularProgressIndicator(
+                                modifier = Modifier.size(30.dp),
+                                strokeWidth = 3.dp
+                            )
+                            ArtistsLoadState.Error -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = stringResource(id = R.string.page_library_load_failed),
+                                    modifier = Modifier.padding(horizontal = 20.dp).alpha(0.6f),
+                                    fontSize = 16.sp
+                                )
+                                Text(
+                                    text = stringResource(id = R.string.page_library_retry),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.clickable { reloadKey++ }.padding(16.dp)
+                                )
+                            }
+                            ArtistsLoadState.Success -> Text(
+                                text = stringResource(id = R.string.page_library_no_followed_artists),
+                                fontSize = 18.sp,
+                                modifier = Modifier.alpha(0.6f)
+                            )
+                        }
                     }
                 }
             }
         } else {
-            val useSearch = remember { derivedStateOf { searchText.value.isNotEmpty() } }
-            val list = remember { mutableStateOf(artistsList) }
-
-            YosWrapper {
-                LaunchedEffect(searchText.value) {
-                    val query = searchText.value
-                    list.value = if (query.isNotEmpty()) {
-                        artistsList.filter { artist ->
-                            artist.name.contains(query, ignoreCase = true)
-                        }
-                    } else {
-                        artistsList
-                    }
+            val query = searchText.value.trim()
+            val filteredArtists = if (query.isEmpty()) {
+                artistsList
+            } else {
+                artistsList.filter { artist ->
+                    artist.name.contains(query, ignoreCase = true)
                 }
             }
 
@@ -149,7 +161,7 @@ fun LocalArtists(navController: NavController) {
                 }
 
                 itemsIndexed(
-                    list.value,
+                    filteredArtists,
                     key = { _, artist -> artist.id.toString() }
                 ) { index, artist ->
                     ArtistItem(artistName = artist.name, artistImageUrl = artist.picUrl) {
@@ -157,7 +169,7 @@ fun LocalArtists(navController: NavController) {
                     }
 
                     key(index) {
-                        val needDivider = index < artistsList.size - 1
+                        val needDivider = index < filteredArtists.size - 1
                         if (needDivider) {
                             Spacer(
                                 modifier = Modifier

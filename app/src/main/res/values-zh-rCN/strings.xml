@@ -82,6 +82,10 @@
     <string name="page_library_playlists">播放列表</string>
     <string name="page_library_search_songs">在歌曲中搜索</string>
     <string name="page_library_search_artists">在艺人中搜索</string>
+    <string name="page_library_load_failed">无法读取账号数据，请检查登录状态和 API 设置。</string>
+    <string name="page_library_retry">重试</string>
+    <string name="page_library_no_subscribed_albums">暂无收藏的专辑。</string>
+    <string name="page_library_no_followed_artists">暂无关注的艺人。</string>
     <string name="playlist_unavailable_desc">没有播放项目。</string>
     <string name="normal_button_sort_by_name">名称</string>
     <string name="normal_button_sort_by_artist">艺人</string>
