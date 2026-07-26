@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
+import yos.music.player.data.objects.NetworkActivityObject
 import android.util.Base64
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -18,6 +19,7 @@ object NcmRepository {
 
     suspend fun <T> safeCall(block: suspend NeteaseMusicApi.() -> retrofit2.Response<T>): Result<T?> =
         withContext(Dispatchers.IO) {
+            NetworkActivityObject.begin()
             try {
                 val api = api() ?: return@withContext Result.failure(IllegalStateException("API not configured"))
                 val resp = block(api)
@@ -28,6 +30,8 @@ object NcmRepository {
                 }
             } catch (e: Exception) {
                 Result.failure(e)
+            } finally {
+                NetworkActivityObject.end()
             }
         }
 
@@ -213,6 +217,7 @@ object NcmRepository {
     }
 
     suspend fun checkLoginStatus(): Boolean {
+        NetworkActivityObject.begin()
         return try {
             val api = api() ?: return false
             val resp = withContext(Dispatchers.IO) { api.loginStatus() }
@@ -230,6 +235,8 @@ object NcmRepository {
             }
         } catch (e: Exception) {
             false
+        } finally {
+            NetworkActivityObject.end()
         }
     }
 }
