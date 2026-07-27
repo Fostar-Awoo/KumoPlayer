@@ -19,6 +19,7 @@ data class NcmAlbumSublistResponse(val code: Int, val data: List<NcmAlbum>?)
 data class NcmArtistSongsResponse(val code: Int, val songs: List<NcmSong>?)
 data class NcmArtistAlbumsResponse(val code: Int, val hotAlbums: List<NcmAlbum>?)
 data class NcmSearchResponse(val code: Int, val result: NcmSearchResult?)
+data class NcmTopArtistsResponse(val code: Int, val artists: List<NcmArtist>?)
 data class NcmSongUrlResponse(val code: Int, val data: List<NcmSongUrl>?)
 data class NcmLyricResponse(
     val code: Int,

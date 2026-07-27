@@ -79,6 +79,27 @@ object NcmRepository {
         return res.getOrNull()?.data?.data?.mapNotNull { it.simpleSong } ?: emptyList()
     }
 
+    /** 官方"音乐雷达"系列歌单（内容按登录账号个性化生成） */
+    private val radarPlaylistIds = listOf(
+        3136952023L, // 私人雷达
+        5320167908L, // 时光雷达
+        5327906368L, // 神秘雷达
+        5341776086L, // 宝藏雷达
+        5300458264L, // 新歌雷达
+        5362359247L  // 乐迷雷达
+    )
+
+    suspend fun getRadarPlaylists(): List<NcmPlaylist> = coroutineScope {
+        radarPlaylistIds
+            .map { id -> async { getPlaylistDetail(id) } }
+            .mapNotNull { it.await() }
+    }
+
+    suspend fun getTopArtists(limit: Int = 20): List<NcmArtist> {
+        val res = safeCall { topArtists(limit) }
+        return res.getOrNull()?.artists ?: emptyList()
+    }
+
     suspend fun getPlaylistDetail(id: Long): NcmPlaylist? {
         val res = safeCall { playlistDetail(id) }
         return res.getOrNull()?.playlist

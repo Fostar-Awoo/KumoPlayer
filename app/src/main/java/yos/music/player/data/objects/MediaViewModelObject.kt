@@ -23,6 +23,9 @@ object MediaViewModelObject {
     val samplingRate = mutableIntStateOf(0)
     val isDolby = mutableStateOf(false)
 
+    /** 正在解析播放地址 / 装载音频（用于迷你播放条“加载中”占位） */
+    val isAudioLoading = mutableStateOf(false)
+
     // val songSort = mutableStateOf(SettingData.getString("yos_player_song_sort", "MUSIC_TITLE"))
     // val enableDescending = mutableStateOf(SettingData.get("yos_player_enable_descending", false))
 }

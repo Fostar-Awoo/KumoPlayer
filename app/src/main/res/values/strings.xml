@@ -151,4 +151,8 @@
     <string name="search_hint">Search for songs, artists, and albums.</string>
     <string name="search_error">Search failed. Check your network or API settings.</string>
     <string name="search_no_results">No results found.</string>
+    <string name="miniplayer_loading">Loading…</string>
+    <string name="home_section_recommend_playlists">Recommended Playlists</string>
+    <string name="home_section_music_radar">Music Radar</string>
+    <string name="home_section_recommend_artists">Recommended Artists</string>
 </resources>

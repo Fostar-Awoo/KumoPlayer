@@ -206,6 +206,8 @@ object MediaController {
         play: Boolean = true
     ) {
         println("prepare $music")
+        MediaViewModelObject.isAudioLoading.value = true
+        try {
         // 优先使用增强 API 返回的实际 CDN 地址；API 不可达时才回退歌曲外链。
         val urls = NcmRepository.getSongUrls(thisMusicList.mapNotNull(YosMediaItem::neteaseId))
         val resolvedList = thisMusicList.mapNotNull { item ->
@@ -274,6 +276,9 @@ object MediaController {
                 playingMusicList.value = resolvedList
                 mediaControl?.fadePlay()
             }
+        }
+        } finally {
+            MediaViewModelObject.isAudioLoading.value = false
         }
     }
 

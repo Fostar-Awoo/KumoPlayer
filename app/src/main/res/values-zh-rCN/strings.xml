@@ -149,4 +149,8 @@
     <string name="search_hint">搜索歌曲、艺人和专辑。</string>
     <string name="search_error">搜索失败，请检查网络或 API 设置。</string>
     <string name="search_no_results">没有找到相关结果。</string>
+    <string name="miniplayer_loading">加载中…</string>
+    <string name="home_section_recommend_playlists">推荐歌单</string>
+    <string name="home_section_music_radar">音乐雷达</string>
+    <string name="home_section_recommend_artists">推荐艺人</string>
 </resources>

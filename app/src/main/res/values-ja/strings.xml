@@ -149,4 +149,8 @@
     <string name="search_hint">曲、アーティスト、アルバムを検索。</string>
     <string name="search_error">検索に失敗しました。ネットワークまたは API 設定を確認してください。</string>
     <string name="search_no_results">結果が見つかりませんでした。</string>
+    <string name="miniplayer_loading">読み込み中…</string>
+    <string name="home_section_recommend_playlists">おすすめプレイリスト</string>
+    <string name="home_section_music_radar">ミュージックレーダー</string>
+    <string name="home_section_recommend_artists">おすすめアーティスト</string>
 </resources>

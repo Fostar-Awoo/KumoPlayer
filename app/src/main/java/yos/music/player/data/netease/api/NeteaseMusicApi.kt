@@ -64,6 +64,9 @@ interface NeteaseMusicApi {
     @GET("album")
     suspend fun albumDetail(@Query("id") id: Long): Response<NcmAlbumDetailResponse>
 
+    @GET("top/artists")
+    suspend fun topArtists(@Query("limit") limit: Int = 20, @Query("offset") offset: Int = 0): Response<NcmTopArtistsResponse>
+
     @GET("cloudsearch")
     suspend fun cloudSearch(@Query("keywords") keywords: String, @Query("type") type: Int = 1, @Query("limit") limit: Int = 30): Response<NcmSearchResponse>
 

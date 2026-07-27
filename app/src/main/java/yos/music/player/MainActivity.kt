@@ -49,7 +49,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.rememberPagerState
@@ -149,7 +148,6 @@ import yos.music.player.ui.theme.withNight
 import yos.music.player.ui.widgets.basic.BottomNavigator
 import yos.music.player.ui.widgets.basic.ImageQuality
 import yos.music.player.ui.widgets.basic.NavItem
-import yos.music.player.ui.widgets.basic.NetworkActivityIndicator
 import yos.music.player.ui.widgets.basic.ShadowImageWithCache
 import yos.music.player.ui.widgets.basic.YosWrapper
 import java.io.File
@@ -977,8 +975,12 @@ class MainActivity : BaseActivity() {
                                                                             )
                                                                     ) {
                                                                         Text(
-                                                                            text = MediaController.musicPlaying.value?.title
-                                                                                ?: defaultTitle,
+                                                                            text = if (MediaViewModelObject.isAudioLoading.value) {
+                                                                                stringResource(id = R.string.miniplayer_loading)
+                                                                            } else {
+                                                                                MediaController.musicPlaying.value?.title
+                                                                                    ?: defaultTitle
+                                                                            },
                                                                             fontWeight = FontWeight.Medium,
                                                                             fontSize = 16.sp,
                                                                             lineHeight = 16.sp,
@@ -1102,20 +1104,6 @@ class MainActivity : BaseActivity() {
                                         }
                                     }
                                 }
-                            }
-                        }
-
-                        // 全局网络活动指示器
-                        YosWrapper {
-                            Box(
-                                Modifier
-                                    .fillMaxSize()
-                                    .statusBarsPadding(),
-                                contentAlignment = Alignment.TopEnd
-                            ) {
-                                NetworkActivityIndicator(
-                                    Modifier.padding(top = 10.dp, end = 16.dp)
-                                )
                             }
                         }
                     /*}*/
