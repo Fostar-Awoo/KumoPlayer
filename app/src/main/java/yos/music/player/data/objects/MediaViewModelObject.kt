@@ -26,6 +26,9 @@ object MediaViewModelObject {
     /** 正在解析播放地址 / 装载音频（用于迷你播放条“加载中”占位） */
     val isAudioLoading = mutableStateOf(false)
 
+    /** 播放器正在缓冲（流播放中途缓冲） */
+    val isBuffering = mutableStateOf(false)
+
     // val songSort = mutableStateOf(SettingData.getString("yos_player_song_sort", "MUSIC_TITLE"))
     // val enableDescending = mutableStateOf(SettingData.get("yos_player_enable_descending", false))
 }

@@ -12,16 +12,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -47,7 +52,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import yos.music.player.R
-import yos.music.player.data.libraries.FavPlayListLibrary
+import yos.music.player.data.netease.api.NcmApiClient
 import yos.music.player.data.netease.api.NcmPlaylist
 import yos.music.player.data.netease.api.NcmRepository
 import yos.music.player.data.netease.api.toYosMediaItem
@@ -64,17 +69,35 @@ fun PlayLists(navController: NavController) {
     val playListsState = remember { mutableStateOf<List<NcmPlaylist>>(emptyList()) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    var showCreateDialog by remember { mutableStateOf(false) }
 
     YosWrapper {
         LaunchedEffect(Unit) {
             if (playListsState.value.isEmpty()) {
-                val uid = yos.music.player.data.netease.api.NcmApiClient.userId
+                val uid = NcmApiClient.userId
                 playListsState.value = NcmRepository.getUserPlaylists(uid)
             }
         }
     }
 
     val playLists = playListsState.value
+
+    if (showCreateDialog) {
+        CreatePlaylistDialog(
+            onDismiss = { showCreateDialog = false },
+            onCreate = { name ->
+                showCreateDialog = false
+                scope.launch(Dispatchers.IO) {
+                    val result = NcmRepository.createPlaylist(name)
+                    result.getOrNull()?.let {
+                        // Refresh playlist after creation
+                        val uid = NcmApiClient.userId
+                        playListsState.value = NcmRepository.getUserPlaylists(uid)
+                    }
+                }
+            }
+        )
+    }
 
     Title(title = stringResource(id = R.string.page_library_playlists),
         onBack = {
@@ -84,29 +107,7 @@ fun PlayLists(navController: NavController) {
             item("AddList") {
                 val targetTitle = context.getString(R.string.page_library_playlists_add_title)
                 PlayListItem(playListType = PlayListType.Add, title = targetTitle) {
-
-                }
-
-                Spacer(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 102.dp)
-                        .alpha(0.15f)
-                        .height(0.5.dp)
-                        .background(Color.Black withNight Color.White)
-                )
-            }
-
-            item("FavList") {
-                val targetTitle = context.getString(R.string.page_library_playlists_fav_title)
-                PlayListItem(playListType = PlayListType.Favorite, title = targetTitle) {
-                    scope.launch(Dispatchers.IO) {
-                        val targetList = FavPlayListLibrary.favPlayList
-                        LibraryObject.setTargetListWithTitle(targetTitle, targetList)
-                        withContext(Dispatchers.Main) {
-                            navController.toUI(UI.NormalMusic)
-                        }
-                    }
+                    showCreateDialog = true
                 }
 
                 Spacer(
@@ -154,7 +155,7 @@ fun PlayLists(navController: NavController) {
 
 @Stable
 private enum class PlayListType {
-    Add, Favorite
+    Add
 }
 
 @Composable
@@ -246,7 +247,7 @@ private fun LazyItemScope.PlayListItem(playListType: PlayListType, title: String
         val shape = YosRoundedCornerShape(4.dp)
         val density = LocalDensity.current
 
-        Image(painter = painterResource(id = if (playListType == PlayListType.Add) R.drawable.placeholder_playlist_new else R.drawable.placeholder_playlist_default),
+        Image(painter = painterResource(id = R.drawable.placeholder_playlist_new),
             contentDescription = null,
             modifier = Modifier
                 .size(64.dp)
@@ -299,4 +300,39 @@ private fun LazyItemScope.PlayListItem(playListType: PlayListType, title: String
                 .alpha(0.3f), tint = MaterialTheme.colorScheme.onBackground
         )
     }
+}
+
+@Composable
+fun CreatePlaylistDialog(
+    onDismiss: () -> Unit,
+    onCreate: (name: String) -> Unit
+) {
+    var playlistName by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.playlist_create_dialog_title)) },
+        text = {
+            OutlinedTextField(
+                value = playlistName,
+                onValueChange = { playlistName = it },
+                label = { Text(stringResource(R.string.playlist_create_dialog_hint)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { if (playlistName.isNotBlank()) onCreate(playlistName.trim()) },
+                enabled = playlistName.isNotBlank()
+            ) {
+                Text(stringResource(R.string.playlist_create_dialog_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.playlist_create_dialog_cancel))
+            }
+        }
+    )
 }

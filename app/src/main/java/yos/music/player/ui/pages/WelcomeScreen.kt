@@ -30,6 +30,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -40,6 +42,7 @@ import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import yos.music.player.R
 import yos.music.player.data.netease.api.NcmApiClient
 import yos.music.player.data.netease.api.NcmRepository
 
@@ -53,6 +56,7 @@ fun NcmAccountScreen(
     onFinished: () -> Unit,
     onBack: (() -> Unit)? = null
 ) {
+    val context = LocalContext.current
     var baseUrl by remember { mutableStateOf(NcmApiClient.baseUrl) }
     var session by remember { mutableStateOf<NcmRepository.QrLoginSession?>(null) }
     var loading by remember { mutableStateOf(false) }
@@ -62,7 +66,7 @@ fun NcmAccountScreen(
     fun configureAndLoadQr() {
         val normalized = NcmApiClient.normalizeBaseUrl(baseUrl)
         if (normalized == null) {
-            message = "请输入有效的 HTTP 或 HTTPS API 地址"
+            message = context.getString(R.string.ncm_account_error_invalid_url)
             return
         }
         baseUrl = normalized
@@ -73,7 +77,9 @@ fun NcmAccountScreen(
         scope.launch {
             NcmRepository.createQrLogin().fold(
                 onSuccess = { session = it },
-                onFailure = { message = it.message ?: "无法连接到网易云 API" }
+                onFailure = {
+                    message = it.message ?: context.getString(R.string.ncm_account_error_connect)
+                }
             )
             loading = false
         }
@@ -87,10 +93,10 @@ fun NcmAccountScreen(
                 onSuccess = { status ->
                     when (status.code) {
                         800 -> {
-                            message = "二维码已过期，请重新获取"
+                            message = context.getString(R.string.ncm_account_qr_expired)
                             session = null
                         }
-                        802 -> message = "已扫码，请在网易云音乐中确认"
+                        802 -> message = context.getString(R.string.ncm_account_qr_scanned)
                         803 -> {
                             val persisted = NcmApiClient.persistLogin(
                                 loginCookie = status.cookie,
@@ -101,13 +107,15 @@ fun NcmAccountScreen(
                                 NcmRepository.checkLoginStatus()
                                 onFinished()
                             } else {
-                                message = "登录成功，但 API 未返回 Cookie，请重新获取二维码"
+                                message = context.getString(R.string.ncm_account_error_missing_cookie)
                                 session = null
                             }
                         }
                     }
                 },
-                onFailure = { message = "二维码状态检查失败，正在重试" }
+                onFailure = {
+                    message = context.getString(R.string.ncm_account_error_qr_status)
+                }
             )
         }
     }
@@ -124,17 +132,17 @@ fun NcmAccountScreen(
                 onClick = onBack,
                 modifier = Modifier.align(Alignment.Start)
             ) {
-                Text("返回")
+                Text(stringResource(R.string.ncm_account_back))
             }
         }
         Text(
-            if (onBack == null) "Kumo Music" else "网易云音乐账号",
+            if (onBack == null) "Kumo Music" else stringResource(R.string.ncm_account_title),
             fontSize = if (onBack == null) 36.sp else 30.sp,
             fontWeight = FontWeight.Bold
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            "连接你的网易云音乐服务",
+            stringResource(R.string.ncm_account_subtitle),
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = .55f),
             fontSize = 17.sp
         )
@@ -144,7 +152,7 @@ fun NcmAccountScreen(
             value = baseUrl,
             onValueChange = { baseUrl = it },
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("API 基础 URL") },
+            label = { Text(stringResource(R.string.ncm_account_base_url_label)) },
             placeholder = { Text("https://music-api.example.com/") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
@@ -153,7 +161,7 @@ fun NcmAccountScreen(
         )
         Spacer(Modifier.height(10.dp))
         Text(
-            "请填写兼容 NeteaseCloudMusicApiEnhanced 的服务地址。地址仅保存在本机。",
+            stringResource(R.string.ncm_account_base_url_help),
             modifier = Modifier.fillMaxWidth(),
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = .45f),
             fontSize = 13.sp
@@ -161,7 +169,10 @@ fun NcmAccountScreen(
         Spacer(Modifier.height(24.dp))
 
         PrimaryAction(
-            label = if (session == null) "连接并获取登录二维码" else "重新获取二维码",
+            label = stringResource(
+                if (session == null) R.string.ncm_account_connect_qr
+                else R.string.ncm_account_refresh_qr
+            ),
             enabled = !loading
         ) {
             if (!loading) configureAndLoadQr()
@@ -176,7 +187,7 @@ fun NcmAccountScreen(
             Spacer(Modifier.height(28.dp))
             AsyncImage(
                 model = qr.image,
-                contentDescription = "网易云音乐登录二维码",
+                contentDescription = stringResource(R.string.ncm_account_qr_description),
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .size(220.dp)
@@ -185,7 +196,7 @@ fun NcmAccountScreen(
                     .padding(12.dp)
             )
             Spacer(Modifier.height(12.dp))
-            Text("使用网易云音乐 App 扫码登录", fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.ncm_account_scan_prompt), fontWeight = FontWeight.Medium)
         }
 
         message?.let {
@@ -202,9 +213,13 @@ fun NcmAccountScreen(
             Spacer(Modifier.height(18.dp))
             Text(
                 if (NcmApiClient.isLoggedIn) {
-                    "当前账号：${NcmApiClient.nickname?.takeIf { it.isNotBlank() } ?: "已登录"}"
+                    stringResource(
+                        R.string.ncm_account_current_account,
+                        NcmApiClient.nickname?.takeIf { it.isNotBlank() }
+                            ?: stringResource(R.string.settings_netease_logged_in)
+                    )
                 } else {
-                    "当前状态：游客"
+                    stringResource(R.string.ncm_account_current_guest)
                 },
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = .55f),
                 fontSize = 14.sp
@@ -213,13 +228,13 @@ fun NcmAccountScreen(
 
         Spacer(Modifier.height(28.dp))
         Text(
-            "以游客身份继续",
+            stringResource(R.string.ncm_account_continue_guest),
             modifier = Modifier
                 .clip(RoundedCornerShape(10.dp))
                 .clickable {
                     val normalized = NcmApiClient.normalizeBaseUrl(baseUrl)
                     if (normalized == null) {
-                        message = "请先填写有效的 API 地址"
+                        message = context.getString(R.string.ncm_account_error_url_required)
                     } else {
                         NcmApiClient.baseUrl = normalized
                         NcmApiClient.clearLogin()
@@ -234,14 +249,14 @@ fun NcmAccountScreen(
 
         if (onBack != null && NcmApiClient.isLoggedIn) {
             Text(
-                "退出登录",
+                stringResource(R.string.ncm_account_sign_out),
                 modifier = Modifier
                     .clip(RoundedCornerShape(10.dp))
                     .clickable {
                         NcmApiClient.clearLogin()
                         NcmApiClient.isGuest = true
                         session = null
-                        message = "已退出登录"
+                        message = context.getString(R.string.ncm_account_signed_out)
                     }
                     .padding(horizontal = 20.dp, vertical = 12.dp),
                 color = MaterialTheme.colorScheme.error,

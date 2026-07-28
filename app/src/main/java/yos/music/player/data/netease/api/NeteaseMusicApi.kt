@@ -79,11 +79,17 @@ interface NeteaseMusicApi {
     @GET("lyric")
     suspend fun lyric(@Query("id") id: Long): Response<NcmLyricResponse>
 
+    @GET("lyric/new")
+    suspend fun lyricNew(@Query("id") id: Long): Response<NcmLyricResponse>
+
     @GET("likelist")
     suspend fun likelist(@Query("uid") uid: Long): Response<NcmLikeListResponse>
 
     @GET("playlist/tracks")
     suspend fun playlistTracksOp(@Query("op") op: String, @Query("pid") pid: String, @Query("tracks") tracks: String): Response<NcmResponse<*>>
+
+    @GET("playlist/create")
+    suspend fun playlistCreate(@Query("name") name: String, @Query("privacy") privacy: Int = 0): Response<NcmPlaylistCreateResponse>
 
     @GET("like")
     suspend fun likeSong(@Query("id") id: Long, @Query("like") like: Boolean = true): Response<NcmResponse<*>>

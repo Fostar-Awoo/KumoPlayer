@@ -43,4 +43,15 @@ class NcmModelsTest {
         assertTrue(response.data is NcmRecommendSongsData)
         assertEquals(123L, response.data?.dailySongs?.single()?.id)
     }
+
+    @Test
+    fun lyricResponseDeserializesWordByWordFields() {
+        val response = Gson().fromJson(
+            """{"code":200,"yrc":{"lyric":"[0,500](0,500,0)Test"},"ytlrc":{"lyric":"[00:00.00]测试"}}""",
+            NcmLyricResponse::class.java
+        )
+
+        assertEquals("[0,500](0,500,0)Test", response.yrc?.lyric)
+        assertEquals("[00:00.00]测试", response.ytlrc?.lyric)
+    }
 }

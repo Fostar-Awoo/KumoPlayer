@@ -61,14 +61,18 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ripple
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SliderPositions
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -81,6 +85,8 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -163,6 +169,7 @@ import yos.music.player.data.models.MainViewModel
 import yos.music.player.data.models.MediaViewModel
 import yos.music.player.data.netease.api.NcmApiClient
 import yos.music.player.data.netease.api.NcmRepository
+import yos.music.player.ui.pages.library.playlists.CreatePlaylistDialog
 import yos.music.player.data.objects.MediaViewModelObject
 import yos.music.player.ui.UI
 import yos.music.player.ui.pages.NowPlayingPage.Album
@@ -409,6 +416,7 @@ fun NowPlaying(
                                     YosWrapper {
                                         Column(Modifier.fillMaxHeight(0.595f)) {
                                             val isVisible = nowPageLambda() == Album
+                                            val isAudioLoading = MediaViewModelObject.isAudioLoading.value
 
                                             Album(
                                                 modifier = Modifier.sharedElementWithCallerManagedVisibility(
@@ -418,17 +426,19 @@ fun NowPlaying(
                                                     visible = isVisible
                                                 ),
                                                 albumUrl = {
-                                                    thisMusicPlaying.value?.coverUrl?.let(Uri::parse)
+                                                    if (isAudioLoading) null
+                                                    else thisMusicPlaying.value?.coverUrl?.let(Uri::parse)
                                                         ?: thisMusicPlaying.value?.thumb
                                                 },
                                                 isPlaying = isPlayingStatusLambda
                                             )
                                             AnimatedContent(
-                                                targetState = thisMusicPlaying.value,
+                                                targetState = if (isAudioLoading) null else thisMusicPlaying.value,
                                                 transitionSpec = {
                                                     fadeIn() togetherWith fadeOut()
                                                 }, modifier = Modifier.padding(horizontal = 32.dp)
                                             ) {
+                                                val loadingText = stringResource(R.string.miniplayer_loading)
                                                 Row(
                                                     Modifier
                                                         .fillMaxWidth(),
@@ -441,8 +451,8 @@ fun NowPlaying(
                                                             .padding(end = 15.dp)
                                                     ) {
                                                         Text(
-                                                            text = it?.title
-                                                                ?: defaultTitle,/*
+                                                            text = if (it == null) loadingText
+                                                                else it.title ?: defaultTitle,/*
                                                         fontWeight = FontWeight.Bold,*/
                                                             fontSize = 19.5.sp,
                                                             maxLines = 1,
@@ -450,8 +460,8 @@ fun NowPlaying(
                                                             fontWeight = FontWeight.Medium
                                                         )
                                                         Text(
-                                                            text = it?.artistsName
-                                                                ?: defaultArtistsName,
+                                                            text = if (it == null) loadingText
+                                                                else it.artistsName ?: defaultArtistsName,
                                                             fontSize = 18.5.sp,
                                                             modifier = Modifier
                                                                 .overlayEffect()
@@ -1410,6 +1420,7 @@ private fun MoreMenuPlaylistsPage(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val playlists = remember { mutableStateOf<List<NcmPlaylist>?>(null) }
+    var showCreateDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         val uid = NcmApiClient.userId
@@ -1417,6 +1428,31 @@ private fun MoreMenuPlaylistsPage(
             NcmRepository.getUserPlaylists(uid)
         }
         playlists.value = lists.filter { it.creator == null || it.creator.userId == uid }
+    }
+
+    if (showCreateDialog) {
+        CreatePlaylistDialog(
+            onDismiss = { showCreateDialog = false },
+            onCreate = { name ->
+                showCreateDialog = false
+                scope.launch(Dispatchers.IO) {
+                    val result = NcmRepository.createPlaylist(name)
+                    val newPlaylist = result.getOrNull()?.playlist
+                    if (newPlaylist != null) {
+                        // Add song to newly created playlist and refresh
+                        music.neteaseId?.let { id ->
+                            NcmRepository.addSongToPlaylist(newPlaylist.id.toString(), id)
+                        }
+                        val uid = NcmApiClient.userId
+                        val lists = NcmRepository.getUserPlaylists(uid)
+                        playlists.value = lists.filter { it.creator == null || it.creator.userId == uid }
+                    }
+                    withContext(Dispatchers.Main) {
+                        onDismiss()
+                    }
+                }
+            }
+        )
     }
 
     Column {
@@ -1448,6 +1484,16 @@ private fun MoreMenuPlaylistsPage(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+        }
+        MoreMenuDivider()
+
+        // "Create New Playlist" entry
+        MoreMenuItem(
+            label = stringResource(id = R.string.nowplaying_more_create_playlist),
+            iconRes = R.drawable.ic_more_menu_playlist_add
+        ) {
+            Vibrator.click(context)
+            showCreateDialog = true
         }
         MoreMenuDivider()
 
@@ -1669,6 +1715,9 @@ private fun PlayingBar(
     musicPlayingLambda: () -> YosMediaItem?,
     onAlbumClick: () -> Unit
 ) = YosWrapper {
+    val isAudioLoading = MediaViewModelObject.isAudioLoading.value
+    val loadingText = stringResource(R.string.miniplayer_loading)
+
     Row(
         Modifier
             .fillMaxWidth()
@@ -1677,7 +1726,8 @@ private fun PlayingBar(
             .height(70.dp), verticalAlignment = Alignment.CenterVertically
     ) {
         ShadowImageWithCache(
-            dataLambda = albumUrlLambda, contentDescription = null, modifier = modifier
+            dataLambda = { if (isAudioLoading) null else albumUrlLambda() },
+            contentDescription = null, modifier = modifier
                 .size(69.dp)
                 .clickable(
                     indication = null,
@@ -1696,7 +1746,8 @@ private fun PlayingBar(
                 .padding(start = 12.dp, end = 15.dp)
         ) {
             Text(
-                text = musicPlayingLambda()?.title ?: defaultTitle,/*
+                text = if (isAudioLoading) loadingText
+                    else musicPlayingLambda()?.title ?: defaultTitle,/*
                 fontWeight = FontWeight.Bold,*/
                 fontSize = 16.5.sp,
                 maxLines = 1,
@@ -1705,8 +1756,8 @@ private fun PlayingBar(
                 lineHeight = 16.5.sp
             )
             Text(
-                text = musicPlayingLambda()?.artistsName
-                    ?: defaultArtistsName,
+                text = if (isAudioLoading) loadingText
+                    else musicPlayingLambda()?.artistsName ?: defaultArtistsName,
                 fontSize = 15.sp,
                 modifier = Modifier.overlayEffect(),
                 maxLines = 1,
@@ -1948,45 +1999,68 @@ private fun PlayerControl(
                 // 进度条
                 YosWrapper {
                     //println("重组：控制区域内部 - 进度条")
-                    Slider(
-                        value = sliderPosition.floatValue,
-                        onValueChange = { newValue ->
-                            isSliding.value = true
+                    val isLoading = MediaViewModelObject.isAudioLoading.value
+                            || MediaViewModelObject.isBuffering.value
 
-                            sliderPosition.floatValue = newValue
-                            val newTotalSeconds = newValue.toLong() / 1000
-                            playedTime.value = formatTime(newTotalSeconds)
+                    if (isLoading) {
+                        // 加载中显示不确定线性进度条
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(14.dp)
+                                .padding(vertical = 3.5.dp)
+                                .alpha(0.45f),
+                            color = Color.White,
+                            trackColor = Color(0x0DFFFFFF),
+                            strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
+                        )
+                    } else {
+                        Slider(
+                            value = sliderPosition.floatValue,
+                            onValueChange = { newValue ->
+                                isSliding.value = true
 
-                            val newRemainingSeconds =
-                                playingDuration.longValue / 1000 - newTotalSeconds
-                            remainingTime.value = "-${formatTime(newRemainingSeconds)}"
+                                sliderPosition.floatValue = newValue
+                                val newTotalSeconds = newValue.toLong() / 1000
+                                playedTime.value = formatTime(newTotalSeconds)
 
-                            onSlider()
-                        },
-                        onValueChangeFinished = {
-                            Vibrator.longClick(context)
-                            onSeek(sliderPosition.floatValue)
-                            isSliding.value = false
-                        },
-                        valueRange = 0f..playingDuration.longValue.toFloat().coerceAtLeast(0f),
-                        colors = SliderDefaults.colors(
-                            activeTrackColor = Color.White,
-                            inactiveTrackColor = Color(0x0DFFFFFF)
-                        ),
-                        modifier = Modifier
-                            .overlayEffect()
-                            .alpha(0.45f)
-                            .height(14.dp),
-                        thumb = {
-                        },
-                        track = {
-                            Track(
-                                sliderPositions = SliderPositions(
-                                    initialActiveRange = 0f..(sliderPosition.floatValue / playingDuration.longValue)
-                                ), height = 7.dp
-                            )
-                        }
-                    )
+                                val newRemainingSeconds =
+                                    playingDuration.longValue / 1000 - newTotalSeconds
+                                remainingTime.value = "-${formatTime(newRemainingSeconds)}"
+
+                                onSlider()
+                            },
+                            onValueChangeFinished = {
+                                Vibrator.longClick(context)
+                                onSeek(sliderPosition.floatValue)
+                                isSliding.value = false
+                            },
+                            valueRange = 0f..playingDuration.longValue.toFloat().coerceAtLeast(0f),
+                            colors = SliderDefaults.colors(
+                                activeTrackColor = Color.White,
+                                inactiveTrackColor = Color(0x0DFFFFFF)
+                            ),
+                            modifier = Modifier
+                                .overlayEffect()
+                                .alpha(0.45f)
+                                .height(14.dp),
+                            thumb = {
+                            },
+                            track = {
+                                val progress = if (playingDuration.longValue > 0L) {
+                                    (sliderPosition.floatValue / playingDuration.longValue)
+                                        .coerceIn(0f, 1f)
+                                } else {
+                                    0f
+                                }
+                                Track(
+                                    sliderPositions = SliderPositions(
+                                        initialActiveRange = 0f..progress
+                                    ), height = 7.dp
+                                )
+                            }
+                        )
+                    }
                 }
 
                 // 控制按钮&进度文本

@@ -137,6 +137,11 @@
     <string name="nowplaying_more_go_album">Go to Album</string>
     <string name="nowplaying_more_playlists_loading">Loading…</string>
     <string name="nowplaying_more_playlists_empty">No playlists yet.</string>
+    <string name="nowplaying_more_create_playlist">Create New Playlist</string>
+    <string name="playlist_create_dialog_title">Create New Playlist</string>
+    <string name="playlist_create_dialog_hint">Playlist name</string>
+    <string name="playlist_create_dialog_confirm">Create</string>
+    <string name="playlist_create_dialog_cancel">Cancel</string>
     <string name="nowplaying_more_remove_from_liked">Remove from Liked Songs</string>
     <string name="artist_latest_release">Latest Release</string>
     <string name="artist_top_songs">Top Songs</string>
@@ -155,4 +160,25 @@
     <string name="home_section_recommend_playlists">Recommended Playlists</string>
     <string name="home_section_music_radar">Music Radar</string>
     <string name="home_section_recommend_artists">Recommended Artists</string>
+    <string name="ncm_account_back">Back</string>
+    <string name="ncm_account_title">NetEase Cloud Music Account</string>
+    <string name="ncm_account_subtitle">Connect to your NetEase Cloud Music service</string>
+    <string name="ncm_account_base_url_label">API base URL</string>
+    <string name="ncm_account_base_url_help">Enter the URL of a NeteaseCloudMusicApiEnhanced-compatible service. It is stored only on this device.</string>
+    <string name="ncm_account_connect_qr">Connect and get login QR code</string>
+    <string name="ncm_account_refresh_qr">Get a new QR code</string>
+    <string name="ncm_account_qr_description">NetEase Cloud Music login QR code</string>
+    <string name="ncm_account_scan_prompt">Scan with the NetEase Cloud Music app to sign in</string>
+    <string name="ncm_account_current_account">Current account: %1$s</string>
+    <string name="ncm_account_current_guest">Current status: Guest</string>
+    <string name="ncm_account_continue_guest">Continue as guest</string>
+    <string name="ncm_account_sign_out">Sign out</string>
+    <string name="ncm_account_signed_out">Signed out</string>
+    <string name="ncm_account_error_invalid_url">Enter a valid HTTP or HTTPS API URL.</string>
+    <string name="ncm_account_error_connect">Unable to connect to the NetEase Cloud Music API.</string>
+    <string name="ncm_account_qr_expired">The QR code has expired. Get a new one.</string>
+    <string name="ncm_account_qr_scanned">Code scanned. Confirm the login in NetEase Cloud Music.</string>
+    <string name="ncm_account_error_missing_cookie">Login succeeded, but the API did not return a cookie. Get a new QR code.</string>
+    <string name="ncm_account_error_qr_status">Could not check the QR code status. Retrying…</string>
+    <string name="ncm_account_error_url_required">Enter a valid API URL first.</string>
 </resources>

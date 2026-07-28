@@ -55,6 +55,7 @@ import yos.music.player.code.MediaController.mediaControl
 import yos.music.player.code.MediaController.mediaSession
 import yos.music.player.code.MediaController.musicPlaying
 import yos.music.player.code.MediaController.onServiceRunning
+import yos.music.player.code.utils.lrc.NeteaseWordLyricParser
 import yos.music.player.code.utils.lrc.YosLrcFactory
 import yos.music.player.code.utils.player.FadeExo
 import yos.music.player.code.utils.player.FadeExo.fadePause
@@ -589,12 +590,30 @@ class YosPlaybackService : MediaSessionService() {
                     if (songId != null) {
                         lyricJob = CoroutineScope(Dispatchers.IO).launch {
                             val lyric = runCatching { NcmRepository.getLyric(songId) }.getOrNull()
-                            // 将同时间轴的翻译歌词交给现有解析器合并为同一行。
-                            val content = listOfNotNull(
-                                lyric?.lrc?.lyric?.takeIf(String::isNotBlank),
-                                lyric?.tlyric?.lyric?.takeIf(String::isNotBlank)
-                            ).joinToString("\n")
-                            val entries = YosLrcFactory().formatLrcEntries(content)
+                            val factory = YosLrcFactory()
+                            val wordEntries = lyric?.wordLyric?.lyric
+                                ?.takeIf(String::isNotBlank)
+                                ?.let { wordLyric ->
+                                    runCatching {
+                                        NeteaseWordLyricParser.parse(
+                                            wordLyric = wordLyric,
+                                            translationLyric = lyric.wordTranslation?.lyric
+                                                ?.takeIf(String::isNotBlank)
+                                                ?: lyric.tlyric?.lyric?.takeIf(String::isNotBlank)
+                                        )
+                                    }.getOrNull()
+                                }
+                                .orEmpty()
+                            val entries = if (wordEntries.isNotEmpty()) {
+                                factory.processEntries(wordEntries)
+                            } else {
+                                // 无逐字歌词或格式不受支持时继续使用普通 LRC。
+                                val content = listOfNotNull(
+                                    lyric?.lrc?.lyric?.takeIf(String::isNotBlank),
+                                    lyric?.tlyric?.lyric?.takeIf(String::isNotBlank)
+                                ).joinToString("\n")
+                                factory.formatLrcEntries(content)
+                            }
                             withContext(Dispatchers.Main) {
                                 // 网络返回较慢时，避免上一首歌词覆盖当前歌曲。
                                 if (player.currentMediaItem?.neteaseId == songId) {
@@ -622,14 +641,16 @@ class YosPlaybackService : MediaSessionService() {
                 override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
                     saveData()
                     super.onShuffleModeEnabledChanged(shuffleModeEnabled)
-                }
+                }*/
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
+                    MediaViewModelObject.isBuffering.value =
+                        playbackState == Player.STATE_BUFFERING
                     if (playbackState != Player.STATE_BUFFERING) {
                         saveData()
                     }
                     super.onPlaybackStateChanged(playbackState)
-                }*/
+                }
 
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     super.onIsPlayingChanged(isPlaying)
@@ -798,6 +819,8 @@ class YosPlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        MediaViewModelObject.isBuffering.value = false
+        MediaViewModelObject.isAudioLoading.value = false
         mediaSession?.run {
             player.release()
             release()

@@ -135,8 +135,19 @@ object NcmRepository {
     }
 
     suspend fun getLyric(id: Long): NcmLyricData? {
-        val res = safeCall { lyric(id) }
-        return res.getOrNull()?.let { NcmLyricData(it.lrc, it.tlyric, it.romalrc) }
+        // Enhanced API 的新版接口提供 yrc 逐字歌词；不支持该接口的服务自动回退。
+        val response = safeCall { lyricNew(id) }.getOrNull()
+            ?.takeIf { it.code == 200 }
+            ?: safeCall { lyric(id) }.getOrNull()
+        return response?.let {
+            NcmLyricData(
+                lrc = it.lrc,
+                tlyric = it.tlyric,
+                romalrc = it.romalrc,
+                wordLyric = it.yrc ?: it.klyric,
+                wordTranslation = it.ytlrc
+            )
+        }
     }
 
     suspend fun getArtistDetail(id: Long): NcmArtistDetail? {
@@ -201,6 +212,10 @@ object NcmRepository {
 
     suspend fun addSongToPlaylist(pid: String, trackId: Long): Result<NcmResponse<*>?> {
         return safeCall { playlistTracksOp("add", pid, trackId.toString()) }
+    }
+
+    suspend fun createPlaylist(name: String, privacy: Int = 0): Result<NcmPlaylistCreateResponse?> {
+        return safeCall { playlistCreate(name, privacy) }
     }
 
     suspend fun likeSong(id: Long, like: Boolean = true): Result<NcmResponse<*>?> {

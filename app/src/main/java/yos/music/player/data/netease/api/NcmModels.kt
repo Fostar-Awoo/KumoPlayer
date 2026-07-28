@@ -25,9 +25,14 @@ data class NcmLyricResponse(
     val code: Int,
     val lrc: NcmLrc?,
     val tlyric: NcmLrc?,
-    val romalrc: NcmLrc?
+    val romalrc: NcmLrc?,
+    val yrc: NcmLrc? = null,
+    val klyric: NcmLrc? = null,
+    val ytlrc: NcmLrc? = null,
+    val yromalrc: NcmLrc? = null
 )
 data class NcmLikeListResponse(val code: Int, val ids: List<Long>?)
+data class NcmPlaylistCreateResponse(val code: Int, val id: Long?, val playlist: NcmPlaylist?)
 data class NcmAlbumDetailResponse(val code: Int, val album: NcmAlbum?, val songs: List<NcmSong>?)
 // endregion
 
@@ -113,7 +118,9 @@ data class NcmSongUrl(val id: Long, val url: String?, val type: String?, val br:
 data class NcmLyricData(
     val lrc: NcmLrc?,
     val tlyric: NcmLrc?,
-    val romalrc: NcmLrc?
+    val romalrc: NcmLrc?,
+    val wordLyric: NcmLrc? = null,
+    val wordTranslation: NcmLrc? = null
 ) : Parcelable
 
 @Parcelize

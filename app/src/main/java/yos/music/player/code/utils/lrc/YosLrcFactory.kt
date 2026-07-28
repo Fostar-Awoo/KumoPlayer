@@ -140,11 +140,12 @@ class YosLrcFactory(private val formatText: Boolean = true) {
                 }
             }
         }
-        val processedEntries = processOtherSide(timeLyricPairs)
+        val processedEntries = processEntries(timeLyricPairs)
         return processedEntries.filter { it.isNotEmpty() }
     }
 
-    private fun processOtherSide(lrcEntries: List<List<Pair<Float, String>>>): List<List<Pair<Float, String>>> {
+    /** 更新对唱方向信息；供其他歌词格式解析器复用。 */
+    fun processEntries(lrcEntries: List<List<Pair<Float, String>>>): List<List<Pair<Float, String>>> {
         // 对唱处理
         val otherSideResult = mutableStateListOf<Boolean>()
         var otherSide = false
