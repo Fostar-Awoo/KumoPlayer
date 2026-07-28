@@ -134,6 +134,8 @@
     <string name="nowplaying_more_add_to_liked">お気に入りの曲に追加</string>
     <string name="nowplaying_more_add_to_playlist">プレイリストに追加</string>
     <string name="nowplaying_more_go_artist">アーティストを表示</string>
+    <string name="artist_selection_title">アーティストを選択</string>
+    <string name="artist_selection_cancel">キャンセル</string>
     <string name="nowplaying_more_go_album">アルバムを表示</string>
     <string name="nowplaying_more_playlists_loading">読み込み中…</string>
     <string name="nowplaying_more_playlists_empty">プレイリストがありません。</string>

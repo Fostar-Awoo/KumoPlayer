@@ -197,6 +197,21 @@ object NowPlayingPage {
 private const val ShareAlbumKey = "album"
 private const val AnimDurationMillis = 300
 
+private data class ArtistNavigationTarget(val id: Long, val name: String)
+
+private fun YosMediaItem.artistNavigationTargets(fallbackName: String): List<ArtistNavigationTarget> {
+    val names = artists.orEmpty().split(" / ").map(String::trim)
+    return artistIds.orEmpty()
+        .mapIndexed { index, id ->
+            ArtistNavigationTarget(
+                id = id,
+                name = names.getOrNull(index)?.takeIf(String::isNotEmpty)
+                    ?: "$fallbackName ${index + 1}"
+            )
+        }
+        .distinctBy(ArtistNavigationTarget::id)
+}
+
 /*
 private val MaterialFadeInTransitionSpec
     get() = SharedElementsTransitionSpec(
@@ -242,6 +257,36 @@ fun NowPlaying(
 
         val thisMusicPlaying = remember("NowPlaying_thisMusicPlaying") {
             musicPlaying
+        }
+
+        var artistChoices by remember { mutableStateOf<List<ArtistNavigationTarget>>(emptyList()) }
+        val artistFallbackName = stringResource(R.string.search_type_artist)
+        val navigateToArtist: (YosMediaItem) -> Unit = { music ->
+            val targets = music.artistNavigationTargets(artistFallbackName)
+            when (targets.size) {
+                0 -> Unit
+                1 -> {
+                    collapseNowPlaying()
+                    navController.navigate("${UI.ArtistInfo}/${targets.single().id}")
+                }
+                else -> artistChoices = targets
+            }
+        }
+
+        LaunchedEffect(thisMusicPlaying.value?.neteaseId) {
+            artistChoices = emptyList()
+        }
+
+        if (artistChoices.isNotEmpty()) {
+            ArtistSelectionDialog(
+                artists = artistChoices,
+                onArtistSelected = { artist ->
+                    artistChoices = emptyList()
+                    collapseNowPlaying()
+                    navController.navigate("${UI.ArtistInfo}/${artist.id}")
+                },
+                onDismiss = { artistChoices = emptyList() }
+            )
         }
 
         val lastClickTime = rememberSaveable(key = "NowPlaying_lastClickTime") {
@@ -468,10 +513,7 @@ fun NowPlaying(
                                                                 .clickable(
                                                                     enabled = it?.artistIds?.isNotEmpty() == true,
                                                                     onClick = {
-                                                                        it?.artistIds?.firstOrNull()?.let { artistId ->
-                                                                            collapseNowPlaying()
-                                                                            navController.navigate("${UI.ArtistInfo}/$artistId")
-                                                                        }
+                                                                        it?.let(navigateToArtist)
                                                                     }
                                                                 ),
                                                             maxLines = 1,
@@ -483,7 +525,8 @@ fun NowPlaying(
                                                     YosWrapper {
                                                         ActionButtonsRow(
                                                             navController,
-                                                            collapseNowPlaying
+                                                            collapseNowPlaying,
+                                                            navigateToArtist
                                                         ) {
                                                             it
                                                         }
@@ -507,6 +550,7 @@ fun NowPlaying(
                                             ),
                                             navController = navController,
                                             collapseNowPlaying = collapseNowPlaying,
+                                            onGoToArtist = navigateToArtist,
                                             albumUrlLambda = {
                                                 thisMusicPlaying.value?.coverUrl?.let(Uri::parse)
                                                     ?: thisMusicPlaying.value?.thumb
@@ -534,6 +578,7 @@ fun NowPlaying(
                                             ),
                                             navController = navController,
                                             collapseNowPlaying = collapseNowPlaying,
+                                            onGoToArtist = navigateToArtist,
                                             albumUrlLambda = {
                                                 thisMusicPlaying.value?.thumb
                                             },
@@ -1244,7 +1289,8 @@ private fun MoreMenuPopup(
     expanded: MutableState<Boolean>,
     musicPlayingLambda: () -> YosMediaItem?,
     navController: NavController,
-    collapseNowPlaying: () -> Unit
+    collapseNowPlaying: () -> Unit,
+    onGoToArtist: (YosMediaItem) -> Unit
 ) {
     val transitionState = remember { MutableTransitionState(false) }
     transitionState.targetState = expanded.value
@@ -1277,6 +1323,7 @@ private fun MoreMenuPopup(
                 musicPlayingLambda = musicPlayingLambda,
                 navController = navController,
                 collapseNowPlaying = collapseNowPlaying,
+                onGoToArtist = onGoToArtist,
                 onDismiss = { expanded.value = false }
             )
         }
@@ -1288,6 +1335,7 @@ private fun MoreMenuContent(
     musicPlayingLambda: () -> YosMediaItem?,
     navController: NavController,
     collapseNowPlaying: () -> Unit,
+    onGoToArtist: (YosMediaItem) -> Unit,
     onDismiss: () -> Unit
 ) {
     val music = musicPlayingLambda() ?: return
@@ -1318,6 +1366,7 @@ private fun MoreMenuContent(
                     onAddToPlaylist = { page.value = MoreMenuPage.Playlists },
                     navController = navController,
                     collapseNowPlaying = collapseNowPlaying,
+                    onGoToArtist = onGoToArtist,
                     onDismiss = onDismiss
                 )
 
@@ -1337,6 +1386,7 @@ private fun MoreMenuMainPage(
     onAddToPlaylist: () -> Unit,
     navController: NavController,
     collapseNowPlaying: () -> Unit,
+    onGoToArtist: (YosMediaItem) -> Unit,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -1381,10 +1431,7 @@ private fun MoreMenuMainPage(
             ) {
                 Vibrator.click(context)
                 onDismiss()
-                music.artistIds.firstOrNull()?.let {
-                    collapseNowPlaying()
-                    navController.navigate("${UI.ArtistInfo}/$it")
-                }
+                onGoToArtist(music)
             }
             needDivider = true
         }
@@ -1588,9 +1635,42 @@ private fun MoreMenuDivider() {
 }
 
 @Composable
+private fun ArtistSelectionDialog(
+    artists: List<ArtistNavigationTarget>,
+    onArtistSelected: (ArtistNavigationTarget) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.artist_selection_title)) },
+        text = {
+            Column {
+                artists.forEach { artist ->
+                    Text(
+                        text = artist.name,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onArtistSelected(artist) }
+                            .padding(vertical = 14.dp),
+                        fontSize = 16.sp
+                    )
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.artist_selection_cancel))
+            }
+        }
+    )
+}
+
+@Composable
 private fun ActionButtonsRow(
     navController: NavController,
     collapseNowPlaying: () -> Unit,
+    onGoToArtist: (YosMediaItem) -> Unit,
     musicPlayingLambda: () -> YosMediaItem?
 ) {
     Row(
@@ -1700,7 +1780,8 @@ private fun ActionButtonsRow(
                 expanded = moreMenuExpanded,
                 musicPlayingLambda = musicPlayingLambda,
                 navController = navController,
-                collapseNowPlaying = collapseNowPlaying
+                collapseNowPlaying = collapseNowPlaying,
+                onGoToArtist = onGoToArtist
             )
         }
     }
@@ -1711,6 +1792,7 @@ private fun PlayingBar(
     modifier: Modifier,
     navController: NavController,
     collapseNowPlaying: () -> Unit,
+    onGoToArtist: (YosMediaItem) -> Unit,
     albumUrlLambda: () -> Uri?,
     musicPlayingLambda: () -> YosMediaItem?,
     onAlbumClick: () -> Unit
@@ -1767,7 +1849,7 @@ private fun PlayingBar(
         }
 
         YosWrapper {
-            ActionButtonsRow(navController, collapseNowPlaying, musicPlayingLambda)
+            ActionButtonsRow(navController, collapseNowPlaying, onGoToArtist, musicPlayingLambda)
         }
     }
 

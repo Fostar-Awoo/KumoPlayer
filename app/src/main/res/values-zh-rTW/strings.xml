@@ -134,6 +134,8 @@
     <string name="nowplaying_more_add_to_liked">加入喜歡的歌曲</string>
     <string name="nowplaying_more_add_to_playlist">加入歌單</string>
     <string name="nowplaying_more_go_artist">檢視歌手</string>
+    <string name="artist_selection_title">選擇一位藝人</string>
+    <string name="artist_selection_cancel">取消</string>
     <string name="nowplaying_more_go_album">檢視專輯</string>
     <string name="nowplaying_more_playlists_loading">正在載入…</string>
     <string name="nowplaying_more_playlists_empty">尚無歌單。</string>

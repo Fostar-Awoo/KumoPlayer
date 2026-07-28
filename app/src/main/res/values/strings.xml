@@ -134,6 +134,8 @@
     <string name="nowplaying_more_add_to_liked">Add to Liked Songs</string>
     <string name="nowplaying_more_add_to_playlist">Add to Playlist</string>
     <string name="nowplaying_more_go_artist">Go to Artist</string>
+    <string name="artist_selection_title">Choose an artist</string>
+    <string name="artist_selection_cancel">Cancel</string>
     <string name="nowplaying_more_go_album">Go to Album</string>
     <string name="nowplaying_more_playlists_loading">Loading…</string>
     <string name="nowplaying_more_playlists_empty">No playlists yet.</string>
