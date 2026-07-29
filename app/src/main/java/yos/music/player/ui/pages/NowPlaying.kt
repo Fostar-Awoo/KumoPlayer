@@ -165,6 +165,7 @@ import yos.music.player.data.libraries.YosMediaItem
 import yos.music.player.data.libraries.artistsName
 import yos.music.player.data.libraries.defaultArtistsName
 import yos.music.player.data.libraries.defaultTitle
+import yos.music.player.data.libraries.toMultipleArtists
 import yos.music.player.data.models.MainViewModel
 import yos.music.player.data.models.MediaViewModel
 import yos.music.player.data.netease.api.NcmApiClient
@@ -200,7 +201,7 @@ private const val AnimDurationMillis = 300
 private data class ArtistNavigationTarget(val id: Long, val name: String)
 
 private fun YosMediaItem.artistNavigationTargets(fallbackName: String): List<ArtistNavigationTarget> {
-    val names = artists.orEmpty().split(" / ").map(String::trim)
+    val names = artists.orEmpty().toMultipleArtists()
     return artistIds.orEmpty()
         .mapIndexed { index, id ->
             ArtistNavigationTarget(

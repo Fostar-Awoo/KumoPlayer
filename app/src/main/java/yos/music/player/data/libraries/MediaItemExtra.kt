@@ -107,23 +107,12 @@ val MediaItem.audioUrl: String?
 val MediaItem.artistIds: List<Long>?
     get() = this.mediaMetadata.extras?.getLongArray("ArtistIds")?.toList()
 
-fun String.toMultipleArtists(): List<String> {
-    val delimiters = listOf("、", "/", "&", ";", "；", ",")
-    var mostFrequentDelimiter: String? = null
-    var maxCount = 0
+private val artistDelimiterRegex = Regex("[、，,/&;；]")
 
-    for (delimiter in delimiters) {
-        val count = this.split(delimiter).size - 1
-        if (count > maxCount) {
-            maxCount = count
-            mostFrequentDelimiter = delimiter
-        }
-    }
-
-    return mostFrequentDelimiter?.let { delimiter ->
-        this.split(delimiter).map { it.trim() }
-    } ?: listOf(this.trim())
-}
+fun String.toMultipleArtists(): List<String> =
+    split(artistDelimiterRegex)
+        .map(String::trim)
+        .filter(String::isNotEmpty)
 
 fun List<String>.toArtistsString(): String {
     return this.joinToString("、")

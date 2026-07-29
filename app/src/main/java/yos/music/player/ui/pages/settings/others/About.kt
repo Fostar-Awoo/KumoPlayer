@@ -52,8 +52,8 @@ fun About(navController: NavController) =
                         ListHeader(content = stringResource(id = R.string.settings_others_about_developers))
                         RoundColumn {
                             LabelItem(
-                                title = "Yos-X (MULTIPLY STUDIO)",
-                                desc = stringResource(id = R.string.settings_others_about_developers_yos_x)
+                                title = "Yos-X (aka. 枫灵剑影 or 凤梨剑影)",
+                                desc = "Original developer of Flamingo"
                             ) {
                                 startWeb(
                                     url = "https://github.com/Yos-X",
